@@ -33,10 +33,11 @@ const CaptionGenerator = ({ scrapedData, selectedImageIndex, onCaptionGenerated 
   const [generatedCaption, setGeneratedCaption] = useState<GeneratedCaption | null>(null);
   
   // Customization options
-  const [selectedModel, setSelectedModel] = useState('anthropic/claude-3.5-sonnet');
+  const [selectedModel, setSelectedModel] = useState('google/gemma-2-9b-it:free');
   const [selectedTone, setSelectedTone] = useState('casual');
   const [selectedStyle, setSelectedStyle] = useState('tips');
   const [selectedLength, setSelectedLength] = useState('medium');
+  const [prePrompt, setPrePrompt] = useState('');
   
   const supabase = useSupabaseClient();
 
@@ -47,7 +48,8 @@ const CaptionGenerator = ({ scrapedData, selectedImageIndex, onCaptionGenerated 
       model: selectedModel,
       tone: selectedTone,
       style: selectedStyle,
-      length: selectedLength
+      length: selectedLength,
+      hasPrePrompt: !!prePrompt
     });
     
     try {
@@ -61,7 +63,8 @@ const CaptionGenerator = ({ scrapedData, selectedImageIndex, onCaptionGenerated 
           model: selectedModel,
           tone: selectedTone,
           style: selectedStyle,
-          length: selectedLength
+          length: selectedLength,
+          prePrompt: prePrompt.trim()
         }
       });
 
@@ -120,10 +123,12 @@ const CaptionGenerator = ({ scrapedData, selectedImageIndex, onCaptionGenerated 
         selectedTone={selectedTone}
         selectedStyle={selectedStyle}
         selectedLength={selectedLength}
+        prePrompt={prePrompt}
         onModelChange={setSelectedModel}
         onToneChange={setSelectedTone}
         onStyleChange={setSelectedStyle}
         onLengthChange={setSelectedLength}
+        onPrePromptChange={setPrePrompt}
       />
 
       {/* Generate Caption Button */}
