@@ -31,7 +31,8 @@ interface CaptionGeneratorProps {
 const CaptionGenerator = ({ scrapedData, selectedImageIndex, onCaptionGenerated }: CaptionGeneratorProps) => {
   const [generatingCaption, setGeneratingCaption] = useState(false);
   const [generatedCaption, setGeneratedCaption] = useState<GeneratedCaption | null>(null);
-  
+  const [lastError, setLastError] = useState<string | null>(null);
+
   // Customization options
   const [selectedModel, setSelectedModel] = useState('google/gemma-2-9b-it:free');
   const [selectedTone, setSelectedTone] = useState('casual');
@@ -43,6 +44,7 @@ const CaptionGenerator = ({ scrapedData, selectedImageIndex, onCaptionGenerated 
 
   const handleGenerateCaption = async () => {
     setGeneratingCaption(true);
+    setLastError(null);
     console.log('🚀 Starting caption generation with settings:', {
       title: scrapedData.title,
       model: selectedModel,
@@ -78,20 +80,25 @@ const CaptionGenerator = ({ scrapedData, selectedImageIndex, onCaptionGenerated 
       console.log('📥 Supabase function response:', { data, error });
 
       if (error) {
-        console.error('❌ Supabase function error:', error);
-        showError(`Supabase error: ${error.message}`);
+        // Try to extract the error body if available
+        let errorMsg = error.message;
+        if (error instanceof Error && 'cause' in error && error.cause) {
+          errorMsg += ` | Cause: ${JSON.stringify(error.cause)}`;
+        }
+        // Try to log the error response body if available
+        if (data && typeof data === 'object') {
+          errorMsg += ` | Response: ${JSON.stringify(data)}`;
+        }
+        setLastError(errorMsg);
+        console.error('❌ Supabase function error:', errorMsg, error);
+        showError(`Supabase error: ${errorMsg}`);
         return;
       }
 
       if (data?.error) {
-        console.error('❌ Function returned error:', data.error);
-        if (data.error.includes('OpenRouter API key')) {
-          showError('❌ OpenRouter API key not configured in Supabase secrets');
-        } else if (data.error.includes('OpenRouter API error')) {
-          showError(`❌ OpenRouter API error: ${data.details || data.error}`);
-        } else {
-          showError(`❌ Caption generation failed: ${data.error}`);
-        }
+        setLastError(`${data.error}${data.details ? ' | ' + data.details : ''}`);
+        console.error('❌ Function returned error:', data.error, data.details);
+        showError(`❌ ${data.error}${data.details ? ': ' + data.details : ''}`);
         return;
       }
 
@@ -107,13 +114,15 @@ const CaptionGenerator = ({ scrapedData, selectedImageIndex, onCaptionGenerated 
         onCaptionGenerated(caption);
         showSuccess('✅ AI caption generated successfully! 🤖✨');
       } else {
+        setLastError('No caption in response: ' + JSON.stringify(data));
         console.error('❌ No caption in response:', data);
         showError('❌ No caption received from AI - check edge function logs');
       }
       
-    } catch (error) {
+    } catch (error: any) {
+      setLastError(error?.message || String(error));
       console.error('❌ Caption generation error:', error);
-      showError(`❌ Failed to generate AI caption: ${error.message}`);
+      showError(`❌ Failed to generate AI caption: ${error?.message || String(error)}`);
     } finally {
       setGeneratingCaption(false);
     }
@@ -171,6 +180,11 @@ const CaptionGenerator = ({ scrapedData, selectedImageIndex, onCaptionGenerated 
               <p className="text-sm text-gray-500">
                 AI will analyze "{scrapedData.title}" and create a custom Instagram caption
               </p>
+              {lastError && (
+                <div className="mt-4 p-3 bg-red-50 text-red-700 rounded text-left break-all">
+                  <strong>Error:</strong> {lastError}
+                </div>
+              )}
             </div>
           </CardContent>
         </Card>
@@ -219,6 +233,11 @@ const CaptionGenerator = ({ scrapedData, selectedImageIndex, onCaptionGenerated 
                 )}
               </Button>
             </div>
+            {lastError && (
+              <div className="mt-4 p-3 bg-red-50 text-red-700 rounded text-left break-all">
+                <strong>Error:</strong> {lastError}
+              </div>
+            )}
           </CardContent>
         </Card>
       )}
