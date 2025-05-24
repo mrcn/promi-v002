@@ -4,13 +4,22 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { LogOut, Sparkles, Link as LinkIcon, Loader2 } from 'lucide-react';
+import { LogOut, Sparkles, Link as LinkIcon, Loader2, Image as ImageIcon } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { showSuccess, showError } from '@/utils/toast';
+
+interface ScrapedData {
+  images: string[];
+  title: string;
+  description: string;
+  content: string;
+  url: string;
+}
 
 const Dashboard = () => {
   const [url, setUrl] = useState('');
   const [loading, setLoading] = useState(false);
+  const [scrapedData, setScrapedData] = useState<ScrapedData | null>(null);
   const user = useUser();
   const supabase = useSupabaseClient();
   const navigate = useNavigate();
@@ -47,14 +56,33 @@ const Dashboard = () => {
     console.log('Processing URL:', url);
     
     try {
-      // TODO: Add URL scraping logic here in next step
-      showSuccess('URL submitted successfully! Scraping functionality coming next...');
+      const { data, error } = await supabase.functions.invoke('scrape-url', {
+        body: { url }
+      });
+
+      if (error) {
+        throw error;
+      }
+
+      if (data.error) {
+        throw new Error(data.error);
+      }
+
+      setScrapedData(data);
+      showSuccess(`Found ${data.images.length} images from the URL!`);
+      console.log('Scraped data:', data);
+      
     } catch (error) {
-      showError('Failed to process URL');
+      showError('Failed to scrape URL. Please try again.');
       console.error('URL processing error:', error);
     } finally {
       setLoading(false);
     }
+  };
+
+  const resetForm = () => {
+    setUrl('');
+    setScrapedData(null);
   };
 
   return (
@@ -93,50 +121,118 @@ const Dashboard = () => {
           </Card>
 
           {/* URL Input Form */}
-          <Card className="max-w-2xl mx-auto">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <LinkIcon className="h-5 w-5" />
-                Enter URL to Transform
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <form onSubmit={handleUrlSubmit} className="space-y-4">
-                <div className="space-y-2">
-                  <Label htmlFor="url">Website URL</Label>
-                  <Input
-                    id="url"
-                    type="url"
-                    placeholder="https://example.com/article"
-                    value={url}
-                    onChange={(e) => setUrl(e.target.value)}
-                    className="text-lg"
-                    disabled={loading}
-                  />
-                  <p className="text-sm text-gray-500">
-                    Paste any article, blog post, or webpage URL to extract images and content
-                  </p>
-                </div>
-                <Button 
-                  type="submit" 
-                  className="w-full text-lg py-6" 
-                  disabled={loading || !url.trim()}
-                >
-                  {loading ? (
-                    <>
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      Processing URL...
-                    </>
-                  ) : (
-                    <>
-                      <Sparkles className="mr-2 h-4 w-4" />
-                      Transform Post
-                    </>
-                  )}
+          {!scrapedData && (
+            <Card className="max-w-2xl mx-auto">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <LinkIcon className="h-5 w-5" />
+                  Enter URL to Transform
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <form onSubmit={handleUrlSubmit} className="space-y-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="url">Website URL</Label>
+                    <Input
+                      id="url"
+                      type="url"
+                      placeholder="https://example.com/article"
+                      value={url}
+                      onChange={(e) => setUrl(e.target.value)}
+                      className="text-lg"
+                      disabled={loading}
+                    />
+                    <p className="text-sm text-gray-500">
+                      Paste any article, blog post, or webpage URL to extract images and content
+                    </p>
+                  </div>
+                  <Button 
+                    type="submit" 
+                    className="w-full text-lg py-6" 
+                    disabled={loading || !url.trim()}
+                  >
+                    {loading ? (
+                      <>
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        Scraping URL...
+                      </>
+                    ) : (
+                      <>
+                        <Sparkles className="mr-2 h-4 w-4" />
+                        Transform Post
+                      </>
+                    )}
+                  </Button>
+                </form>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Scraped Results */}
+          {scrapedData && (
+            <div className="space-y-6">
+              {/* Page Info */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <LinkIcon className="h-5 w-5" />
+                    Scraped Content
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-3">
+                    <div>
+                      <h3 className="font-semibold text-lg">{scrapedData.title}</h3>
+                      {scrapedData.description && (
+                        <p className="text-gray-600 mt-1">{scrapedData.description}</p>
+                      )}
+                    </div>
+                    <div className="flex items-center gap-2 text-sm text-gray-500">
+                      <ImageIcon className="h-4 w-4" />
+                      Found {scrapedData.images.length} images
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Images Grid */}
+              {scrapedData.images.length > 0 && (
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Select an Image</CardTitle>
+                    <p className="text-sm text-gray-600">Choose an image for your Instagram post</p>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+                      {scrapedData.images.map((imageUrl, index) => (
+                        <div 
+                          key={index}
+                          className="aspect-square bg-gray-100 rounded-lg overflow-hidden cursor-pointer hover:ring-2 hover:ring-purple-500 transition-all"
+                        >
+                          <img
+                            src={imageUrl}
+                            alt={`Image ${index + 1}`}
+                            className="w-full h-full object-cover"
+                            onError={(e) => {
+                              const target = e.target as HTMLImageElement;
+                              target.style.display = 'none';
+                            }}
+                          />
+                        </div>
+                      ))}
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
+
+              {/* Reset Button */}
+              <div className="text-center">
+                <Button variant="outline" onClick={resetForm}>
+                  Try Another URL
                 </Button>
-              </form>
-            </CardContent>
-          </Card>
+              </div>
+            </div>
+          )}
         </div>
       </div>
     </div>
