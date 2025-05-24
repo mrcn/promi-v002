@@ -4,7 +4,8 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { LogOut, Sparkles, Link as LinkIcon, Loader2, Image as ImageIcon, Check } from 'lucide-react';
+import { Textarea } from '@/components/ui/textarea';
+import { LogOut, Sparkles, Link as LinkIcon, Loader2, Image as ImageIcon, Check, Copy, RefreshCw } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { showSuccess, showError } from '@/utils/toast';
 
@@ -16,11 +17,20 @@ interface ScrapedData {
   url: string;
 }
 
+interface GeneratedCaption {
+  caption: string;
+  imageUrl: string;
+  title: string;
+  url: string;
+}
+
 const Dashboard = () => {
   const [url, setUrl] = useState('');
   const [loading, setLoading] = useState(false);
   const [scrapedData, setScrapedData] = useState<ScrapedData | null>(null);
   const [selectedImageIndex, setSelectedImageIndex] = useState<number | null>(null);
+  const [generatingCaption, setGeneratingCaption] = useState(false);
+  const [generatedCaption, setGeneratedCaption] = useState<GeneratedCaption | null>(null);
   const user = useUser();
   const supabase = useSupabaseClient();
   const navigate = useNavigate();
@@ -70,7 +80,8 @@ const Dashboard = () => {
       }
 
       setScrapedData(data);
-      setSelectedImageIndex(null); // Reset selection
+      setSelectedImageIndex(null);
+      setGeneratedCaption(null);
       showSuccess(`Found ${data.images.length} images from the URL!`);
       console.log('Scraped data:', data);
       
@@ -84,29 +95,64 @@ const Dashboard = () => {
 
   const handleImageSelect = (index: number) => {
     setSelectedImageIndex(index);
+    setGeneratedCaption(null); // Reset caption when selecting new image
     showSuccess('Image selected! Ready to generate caption.');
     console.log('Selected image:', scrapedData?.images[index]);
+  };
+
+  const handleGenerateCaption = async () => {
+    if (selectedImageIndex === null || !scrapedData) {
+      showError('Please select an image first');
+      return;
+    }
+
+    setGeneratingCaption(true);
+    
+    try {
+      const { data, error } = await supabase.functions.invoke('generate-caption', {
+        body: {
+          imageUrl: scrapedData.images[selectedImageIndex],
+          title: scrapedData.title,
+          description: scrapedData.description,
+          content: scrapedData.content,
+          url: scrapedData.url
+        }
+      });
+
+      if (error) {
+        throw error;
+      }
+
+      if (data.error) {
+        throw new Error(data.error);
+      }
+
+      setGeneratedCaption(data);
+      showSuccess('Caption generated successfully! 🎉');
+      console.log('Generated caption:', data);
+      
+    } catch (error) {
+      showError('Failed to generate caption. Please try again.');
+      console.error('Caption generation error:', error);
+    } finally {
+      setGeneratingCaption(false);
+    }
+  };
+
+  const copyToClipboard = async (text: string) => {
+    try {
+      await navigator.clipboard.writeText(text);
+      showSuccess('Caption copied to clipboard!');
+    } catch (error) {
+      showError('Failed to copy to clipboard');
+    }
   };
 
   const resetForm = () => {
     setUrl('');
     setScrapedData(null);
     setSelectedImageIndex(null);
-  };
-
-  const handleGenerateCaption = () => {
-    if (selectedImageIndex === null || !scrapedData) {
-      showError('Please select an image first');
-      return;
-    }
-    
-    // TODO: Add caption generation in next step
-    showSuccess('Caption generation coming next!');
-    console.log('Generating caption for:', {
-      image: scrapedData.images[selectedImageIndex],
-      content: scrapedData.content,
-      title: scrapedData.title
-    });
+    setGeneratedCaption(null);
   };
 
   return (
@@ -267,7 +313,7 @@ const Dashboard = () => {
               )}
 
               {/* Generate Caption Button */}
-              {selectedImageIndex !== null && (
+              {selectedImageIndex !== null && !generatedCaption && (
                 <Card>
                   <CardContent className="pt-6">
                     <div className="text-center space-y-4">
@@ -276,9 +322,57 @@ const Dashboard = () => {
                         onClick={handleGenerateCaption}
                         size="lg"
                         className="text-lg px-8 py-6"
+                        disabled={generatingCaption}
                       >
-                        <Sparkles className="mr-2 h-5 w-5" />
-                        Generate Instagram Caption
+                        {generatingCaption ? (
+                          <>
+                            <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+                            Generating Caption...
+                          </>
+                        ) : (
+                          <>
+                            <Sparkles className="mr-2 h-5 w-5" />
+                            Generate Instagram Caption
+                          </>
+                        )}
+                      </Button>
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
+
+              {/* Generated Caption */}
+              {generatedCaption && (
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2">
+                      <Sparkles className="h-5 w-5" />
+                      Your Instagram Caption
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    <div className="bg-gray-50 rounded-lg p-4">
+                      <Textarea
+                        value={generatedCaption.caption}
+                        readOnly
+                        className="min-h-[150px] resize-none border-none bg-transparent text-base"
+                      />
+                    </div>
+                    <div className="flex gap-2">
+                      <Button 
+                        onClick={() => copyToClipboard(generatedCaption.caption)}
+                        className="flex-1"
+                      >
+                        <Copy className="mr-2 h-4 w-4" />
+                        Copy Caption
+                      </Button>
+                      <Button 
+                        onClick={handleGenerateCaption}
+                        variant="outline"
+                        disabled={generatingCaption}
+                      >
+                        <RefreshCw className="mr-2 h-4 w-4" />
+                        Regenerate
                       </Button>
                     </div>
                   </CardContent>
