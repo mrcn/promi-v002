@@ -8,6 +8,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { LogOut, Sparkles, Link as LinkIcon, Loader2, Image as ImageIcon, Check, Copy, RefreshCw } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { showSuccess, showError } from '@/utils/toast';
+import InstagramPreview from '@/components/InstagramPreview';
 
 interface ScrapedData {
   images: string[];
@@ -196,7 +197,7 @@ const Dashboard = () => {
         </div>
 
         {/* Main Content */}
-        <div className="max-w-4xl mx-auto space-y-8">
+        <div className="max-w-6xl mx-auto space-y-8">
           {/* Hero Section */}
           <Card className="text-center py-8">
             <CardHeader>
@@ -265,163 +266,177 @@ const Dashboard = () => {
 
           {/* Scraped Results */}
           {scrapedData && (
-            <div className="space-y-6">
-              {/* Page Info */}
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <LinkIcon className="h-5 w-5" />
-                    Scraped Content
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-3">
-                    <div>
-                      <h3 className="font-semibold text-lg">{scrapedData.title}</h3>
-                      {scrapedData.description && (
-                        <p className="text-gray-600 mt-1">{scrapedData.description}</p>
-                      )}
-                    </div>
-                    <div className="flex items-center gap-2 text-sm text-gray-500">
-                      <ImageIcon className="h-4 w-4" />
-                      Found {scrapedData.images.length} images
-                      {selectedImageIndex !== null && (
-                        <span className="text-green-600 font-medium">
-                          • Image {selectedImageIndex + 1} selected
-                        </span>
-                      )}
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-
-              {/* Images Grid */}
-              {scrapedData.images.length > 0 && (
-                <Card>
-                  <CardHeader>
-                    <CardTitle>Select an Image</CardTitle>
-                    <p className="text-sm text-gray-600">Click on an image to select it for your Instagram post</p>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-                      {scrapedData.images.map((imageUrl, index) => (
-                        <div 
-                          key={index}
-                          onClick={() => handleImageSelect(index)}
-                          className={`aspect-square bg-gray-100 rounded-lg overflow-hidden cursor-pointer transition-all relative ${
-                            selectedImageIndex === index 
-                              ? 'ring-4 ring-purple-500 ring-offset-2' 
-                              : 'hover:ring-2 hover:ring-purple-300'
-                          }`}
-                        >
-                          <img
-                            src={imageUrl}
-                            alt={`Image ${index + 1}`}
-                            className="w-full h-full object-cover"
-                            onError={(e) => {
-                              const target = e.target as HTMLImageElement;
-                              target.style.display = 'none';
-                            }}
-                          />
-                          {selectedImageIndex === index && (
-                            <div className="absolute inset-0 bg-purple-500 bg-opacity-20 flex items-center justify-center">
-                              <div className="bg-purple-500 rounded-full p-2">
-                                <Check className="h-6 w-6 text-white" />
-                              </div>
-                            </div>
-                          )}
-                        </div>
-                      ))}
-                    </div>
-                  </CardContent>
-                </Card>
-              )}
-
-              {/* Generate Caption Button */}
-              {selectedImageIndex !== null && !generatedCaption && (
-                <Card>
-                  <CardContent className="pt-6">
-                    <div className="text-center space-y-4">
-                      <p className="text-lg font-medium">Perfect! You've selected your image.</p>
-                      <Button 
-                        onClick={handleGenerateCaption}
-                        size="lg"
-                        className="text-lg px-8 py-6"
-                        disabled={generatingCaption}
-                      >
-                        {generatingCaption ? (
-                          <>
-                            <Loader2 className="mr-2 h-5 w-5 animate-spin" />
-                            AI Generating Caption...
-                          </>
-                        ) : (
-                          <>
-                            <Sparkles className="mr-2 h-5 w-5" />
-                            Generate AI Caption
-                          </>
-                        )}
-                      </Button>
-                      <p className="text-sm text-gray-500">
-                        AI will analyze "{scrapedData.title}" and create a custom Instagram caption
-                      </p>
-                    </div>
-                  </CardContent>
-                </Card>
-              )}
-
-              {/* Generated Caption */}
-              {generatedCaption && (
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+              {/* Left Column - Content & Controls */}
+              <div className="space-y-6">
+                {/* Page Info */}
                 <Card>
                   <CardHeader>
                     <CardTitle className="flex items-center gap-2">
-                      <Sparkles className="h-5 w-5" />
-                      AI-Generated Instagram Caption
+                      <LinkIcon className="h-5 w-5" />
+                      Scraped Content
                     </CardTitle>
                   </CardHeader>
-                  <CardContent className="space-y-4">
-                    <div className="bg-gray-50 rounded-lg p-4">
-                      <Textarea
-                        value={generatedCaption.caption}
-                        readOnly
-                        className="min-h-[150px] resize-none border-none bg-transparent text-base"
-                      />
-                    </div>
-                    <div className="flex gap-2">
-                      <Button 
-                        onClick={() => copyToClipboard(generatedCaption.caption)}
-                        className="flex-1"
-                      >
-                        <Copy className="mr-2 h-4 w-4" />
-                        Copy Caption
-                      </Button>
-                      <Button 
-                        onClick={handleGenerateCaption}
-                        variant="outline"
-                        disabled={generatingCaption}
-                      >
-                        {generatingCaption ? (
-                          <>
-                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                            Regenerating...
-                          </>
-                        ) : (
-                          <>
-                            <RefreshCw className="mr-2 h-4 w-4" />
-                            Regenerate Caption
-                          </>
+                  <CardContent>
+                    <div className="space-y-3">
+                      <div>
+                        <h3 className="font-semibold text-lg">{scrapedData.title}</h3>
+                        {scrapedData.description && (
+                          <p className="text-gray-600 mt-1">{scrapedData.description}</p>
                         )}
-                      </Button>
+                      </div>
+                      <div className="flex items-center gap-2 text-sm text-gray-500">
+                        <ImageIcon className="h-4 w-4" />
+                        Found {scrapedData.images.length} images
+                        {selectedImageIndex !== null && (
+                          <span className="text-green-600 font-medium">
+                            • Image {selectedImageIndex + 1} selected
+                          </span>
+                        )}
+                      </div>
                     </div>
                   </CardContent>
                 </Card>
-              )}
 
-              {/* Reset Button */}
-              <div className="text-center">
-                <Button variant="outline" onClick={resetForm}>
-                  Try Another URL
-                </Button>
+                {/* Images Grid */}
+                {scrapedData.images.length > 0 && (
+                  <Card>
+                    <CardHeader>
+                      <CardTitle>Select an Image</CardTitle>
+                      <p className="text-sm text-gray-600">Click on an image to select it for your Instagram post</p>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                        {scrapedData.images.map((imageUrl, index) => (
+                          <div 
+                            key={index}
+                            onClick={() => handleImageSelect(index)}
+                            className={`aspect-square bg-gray-100 rounded-lg overflow-hidden cursor-pointer transition-all relative ${
+                              selectedImageIndex === index 
+                                ? 'ring-4 ring-purple-500 ring-offset-2' 
+                                : 'hover:ring-2 hover:ring-purple-300'
+                            }`}
+                          >
+                            <img
+                              src={imageUrl}
+                              alt={`Image ${index + 1}`}
+                              className="w-full h-full object-cover"
+                              onError={(e) => {
+                                const target = e.target as HTMLImageElement;
+                                target.style.display = 'none';
+                              }}
+                            />
+                            {selectedImageIndex === index && (
+                              <div className="absolute inset-0 bg-purple-500 bg-opacity-20 flex items-center justify-center">
+                                <div className="bg-purple-500 rounded-full p-2">
+                                  <Check className="h-6 w-6 text-white" />
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    </CardContent>
+                  </Card>
+                )}
+
+                {/* Generate Caption Button */}
+                {selectedImageIndex !== null && !generatedCaption && (
+                  <Card>
+                    <CardContent className="pt-6">
+                      <div className="text-center space-y-4">
+                        <p className="text-lg font-medium">Perfect! You've selected your image.</p>
+                        <Button 
+                          onClick={handleGenerateCaption}
+                          size="lg"
+                          className="text-lg px-8 py-6"
+                          disabled={generatingCaption}
+                        >
+                          {generatingCaption ? (
+                            <>
+                              <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+                              AI Generating Caption...
+                            </>
+                          ) : (
+                            <>
+                              <Sparkles className="mr-2 h-5 w-5" />
+                              Generate AI Caption
+                            </>
+                          )}
+                        </Button>
+                        <p className="text-sm text-gray-500">
+                          AI will analyze "{scrapedData.title}" and create a custom Instagram caption
+                        </p>
+                      </div>
+                    </CardContent>
+                  </Card>
+                )}
+
+                {/* Generated Caption */}
+                {generatedCaption && (
+                  <Card>
+                    <CardHeader>
+                      <CardTitle className="flex items-center gap-2">
+                        <Sparkles className="h-5 w-5" />
+                        AI-Generated Instagram Caption
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent className="space-y-4">
+                      <div className="bg-gray-50 rounded-lg p-4">
+                        <Textarea
+                          value={generatedCaption.caption}
+                          readOnly
+                          className="min-h-[150px] resize-none border-none bg-transparent text-base"
+                        />
+                      </div>
+                      <div className="flex gap-2">
+                        <Button 
+                          onClick={() => copyToClipboard(generatedCaption.caption)}
+                          className="flex-1"
+                        >
+                          <Copy className="mr-2 h-4 w-4" />
+                          Copy Caption
+                        </Button>
+                        <Button 
+                          onClick={handleGenerateCaption}
+                          variant="outline"
+                          disabled={generatingCaption}
+                        >
+                          {generatingCaption ? (
+                            <>
+                              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                              Regenerating...
+                            </>
+                          ) : (
+                            <>
+                              <RefreshCw className="mr-2 h-4 w-4" />
+                              Regenerate Caption
+                            </>
+                          )}
+                        </Button>
+                      </div>
+                    </CardContent>
+                  </Card>
+                )}
+
+                {/* Reset Button */}
+                <div className="text-center">
+                  <Button variant="outline" onClick={resetForm}>
+                    Try Another URL
+                  </Button>
+                </div>
               </div>
+
+              {/* Right Column - Instagram Preview */}
+              {generatedCaption && (
+                <div className="lg:sticky lg:top-8">
+                  <InstagramPreview
+                    imageUrl={generatedCaption.imageUrl}
+                    caption={generatedCaption.caption}
+                    username={user?.email?.split('@')[0] || 'your_username'}
+                  />
+                </div>
+              )}
             </div>
           )}
         </div>
