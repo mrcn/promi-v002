@@ -11,6 +11,10 @@ interface CaptionRequest {
   description: string;
   content: string;
   url: string;
+  model?: string;
+  tone?: string;
+  style?: string;
+  length?: string;
 }
 
 serve(async (req) => {
@@ -21,9 +25,26 @@ serve(async (req) => {
   try {
     console.log('Caption generation request received')
     
-    const { imageUrl, title, description, content, url }: CaptionRequest = await req.json()
+    const { 
+      imageUrl, 
+      title, 
+      description, 
+      content, 
+      url,
+      model = 'anthropic/claude-3.5-sonnet',
+      tone = 'casual',
+      style = 'tips',
+      length = 'medium'
+    }: CaptionRequest = await req.json()
     
-    console.log('Request data:', { title, imageUrl: imageUrl?.substring(0, 50) + '...' })
+    console.log('Request data:', { 
+      title, 
+      imageUrl: imageUrl?.substring(0, 50) + '...', 
+      model, 
+      tone, 
+      style, 
+      length 
+    })
     
     if (!imageUrl || !title) {
       console.error('Missing required fields:', { imageUrl: !!imageUrl, title: !!title })
@@ -57,28 +78,62 @@ serve(async (req) => {
       )
     }
 
-    // Create a prompt for Instagram caption generation
-    const prompt = `Create an engaging Instagram caption for this content:
+    // Build tone instructions
+    const toneInstructions = {
+      casual: "Use a casual, friendly, and approachable tone. Write like you're talking to a friend.",
+      professional: "Use a professional, polished tone suitable for business contexts.",
+      inspirational: "Use an inspirational, motivating tone that uplifts and encourages.",
+      funny: "Use humor and playfulness. Be entertaining and light-hearted.",
+      educational: "Use an informative, teaching-focused tone that helps people learn.",
+      storytelling: "Use a narrative approach that tells a compelling story."
+    }
+
+    // Build style instructions
+    const styleInstructions = {
+      question: "Start with engaging questions that hook the reader and encourage thinking.",
+      cta: "Include clear calls-to-action that encourage engagement, comments, or shares.",
+      tips: "Focus on sharing valuable tips, insights, or takeaways from the content.",
+      personal: "Relate the content to personal experiences and make it relatable.",
+      facts: "Highlight interesting facts, statistics, or data points from the content.",
+      'behind-scenes': "Show the process, journey, or behind-the-scenes aspects."
+    }
+
+    // Build length instructions
+    const lengthInstructions = {
+      short: "Keep it concise and punchy (50-100 words). Get straight to the point.",
+      medium: "Use a balanced approach (100-150 words). Provide good detail without being too long.",
+      long: "Be comprehensive and detailed (150-200 words). Dive deep into the topic."
+    }
+
+    // Create a customized prompt based on user selections
+    const basePrompt = `Create an engaging Instagram caption for this content:
 
 Title: ${title}
 Description: ${description || 'No description available'}
 Source URL: ${url}
 Content Preview: ${content.substring(0, 500)}...
 
+TONE: ${toneInstructions[tone as keyof typeof toneInstructions] || toneInstructions.casual}
+
+STYLE: ${styleInstructions[style as keyof typeof styleInstructions] || styleInstructions.tips}
+
+LENGTH: ${lengthInstructions[length as keyof typeof lengthInstructions] || lengthInstructions.medium}
+
 Requirements:
 - Make it engaging and Instagram-friendly
-- Include relevant emojis
+- Include relevant emojis (but don't overdo it)
 - Add 3-5 relevant hashtags at the end
-- Keep it under 200 words
 - Make it conversational and authentic
 - Focus on the key insights or interesting points from the content
 - Don't mention that this is from a URL or article
+- Follow the tone, style, and length guidelines above
 
 Generate a caption that would make people want to engage with this post:`
 
+    console.log('Using model:', model)
     console.log('Calling OpenRouter API...')
 
-    // Call OpenRouter API
+    // Call OpenRouter API with selected model
     const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
       method: 'POST',
       headers: {
@@ -88,15 +143,15 @@ Generate a caption that would make people want to engage with this post:`
         'X-Title': 'Instagram Post Transformer'
       },
       body: JSON.stringify({
-        model: 'anthropic/claude-3.5-sonnet',
+        model: model,
         messages: [
           {
             role: 'user',
-            content: prompt
+            content: basePrompt
           }
         ],
-        max_tokens: 300,
-        temperature: 0.7
+        max_tokens: length === 'short' ? 150 : length === 'long' ? 400 : 250,
+        temperature: tone === 'funny' ? 0.9 : tone === 'professional' ? 0.5 : 0.7
       })
     })
 
@@ -142,7 +197,8 @@ Generate a caption that would make people want to engage with this post:`
         caption,
         imageUrl,
         title,
-        url
+        url,
+        settings: { model, tone, style, length }
       }),
       { 
         headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
