@@ -19,9 +19,14 @@ serve(async (req) => {
   }
 
   try {
+    console.log('Caption generation request received')
+    
     const { imageUrl, title, description, content, url }: CaptionRequest = await req.json()
     
+    console.log('Request data:', { title, imageUrl: imageUrl?.substring(0, 50) + '...' })
+    
     if (!imageUrl || !title) {
+      console.error('Missing required fields:', { imageUrl: !!imageUrl, title: !!title })
       return new Response(
         JSON.stringify({ error: 'Image URL and title are required' }),
         { 
@@ -31,13 +36,25 @@ serve(async (req) => {
       )
     }
 
-    console.log('Generating caption for:', { title, imageUrl })
-
     // Get OpenRouter API key from environment
     const openRouterApiKey = Deno.env.get('OPENROUTER_API_KEY')
     
+    console.log('API key check:', { 
+      hasApiKey: !!openRouterApiKey, 
+      keyPrefix: openRouterApiKey?.substring(0, 10) + '...' 
+    })
+    
     if (!openRouterApiKey) {
-      throw new Error('OpenRouter API key not configured')
+      console.error('OpenRouter API key not found in environment variables')
+      return new Response(
+        JSON.stringify({ 
+          error: 'OpenRouter API key not configured. Please add OPENROUTER_API_KEY to your Supabase Edge Function secrets.' 
+        }),
+        { 
+          status: 500, 
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+        }
+      )
     }
 
     // Create a prompt for Instagram caption generation
@@ -58,6 +75,8 @@ Requirements:
 - Don't mention that this is from a URL or article
 
 Generate a caption that would make people want to engage with this post:`
+
+    console.log('Calling OpenRouter API...')
 
     // Call OpenRouter API
     const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
@@ -81,21 +100,42 @@ Generate a caption that would make people want to engage with this post:`
       })
     })
 
+    console.log('OpenRouter response status:', response.status)
+
     if (!response.ok) {
       const errorData = await response.text()
-      console.error('OpenRouter API error:', errorData)
-      throw new Error(`OpenRouter API error: ${response.status}`)
+      console.error('OpenRouter API error:', { status: response.status, error: errorData })
+      return new Response(
+        JSON.stringify({ 
+          error: `OpenRouter API error: ${response.status}`, 
+          details: errorData 
+        }),
+        { 
+          status: 500, 
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+        }
+      )
     }
 
     const data = await response.json()
+    console.log('OpenRouter response received:', { hasChoices: !!data.choices })
     
     if (!data.choices || !data.choices[0] || !data.choices[0].message) {
-      throw new Error('Invalid response from OpenRouter API')
+      console.error('Invalid OpenRouter response structure:', data)
+      return new Response(
+        JSON.stringify({ 
+          error: 'Invalid response from OpenRouter API',
+          details: 'Response structure is not as expected'
+        }),
+        { 
+          status: 500, 
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+        }
+      )
     }
 
     const caption = data.choices[0].message.content.trim()
-
-    console.log('Generated caption:', caption.substring(0, 100) + '...')
+    console.log('Caption generated successfully, length:', caption.length)
 
     return new Response(
       JSON.stringify({ 
