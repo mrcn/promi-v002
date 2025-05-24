@@ -107,12 +107,16 @@ const Dashboard = () => {
     }
 
     setGeneratingCaption(true);
-    console.log('Starting caption generation...');
+    console.log('Generating AI caption with content:', {
+      title: scrapedData.title,
+      contentLength: scrapedData.content.length,
+      description: scrapedData.description
+    });
     
     try {
-      // First try the test function to see if edge functions work at all
-      console.log('Calling test-caption function...');
-      const { data, error } = await supabase.functions.invoke('test-caption', {
+      // Call the REAL AI caption generation function
+      console.log('Calling generate-caption function with real AI...');
+      const { data, error } = await supabase.functions.invoke('generate-caption', {
         body: {
           imageUrl: scrapedData.images[selectedImageIndex],
           title: scrapedData.title,
@@ -122,7 +126,7 @@ const Dashboard = () => {
         }
       });
 
-      console.log('Function response:', { data, error });
+      console.log('AI Caption response:', { data, error });
 
       if (error) {
         console.error('Supabase function error:', error);
@@ -131,25 +135,30 @@ const Dashboard = () => {
 
       if (data.error) {
         console.error('Function returned error:', data.error);
-        throw new Error(data.error);
+        if (data.error.includes('OpenRouter API key')) {
+          showError('Please add your OpenRouter API key to Supabase Edge Function secrets');
+        } else {
+          showError(`Caption generation failed: ${data.error}`);
+        }
+        return;
       }
 
-      if (data.success) {
+      if (data.caption) {
         setGeneratedCaption({
           caption: data.caption,
           imageUrl: scrapedData.images[selectedImageIndex],
           title: scrapedData.title,
           url: scrapedData.url
         });
-        showSuccess('Test caption generated successfully! 🎉');
-        console.log('Test successful:', data);
+        showSuccess('AI caption generated successfully! 🤖✨');
+        console.log('AI-generated caption:', data.caption);
       } else {
-        throw new Error('Unexpected response format');
+        throw new Error('No caption received from AI');
       }
       
     } catch (error) {
-      showError('Failed to generate caption. Check console for details.');
-      console.error('Caption generation error:', error);
+      showError('Failed to generate AI caption. Check console for details.');
+      console.error('AI Caption generation error:', error);
     } finally {
       setGeneratingCaption(false);
     }
@@ -343,15 +352,18 @@ const Dashboard = () => {
                         {generatingCaption ? (
                           <>
                             <Loader2 className="mr-2 h-5 w-5 animate-spin" />
-                            Testing Caption Generation...
+                            AI Generating Caption...
                           </>
                         ) : (
                           <>
                             <Sparkles className="mr-2 h-5 w-5" />
-                            Test Caption Generation
+                            Generate AI Caption
                           </>
                         )}
                       </Button>
+                      <p className="text-sm text-gray-500">
+                        AI will analyze "{scrapedData.title}" and create a custom Instagram caption
+                      </p>
                     </div>
                   </CardContent>
                 </Card>
@@ -363,7 +375,7 @@ const Dashboard = () => {
                   <CardHeader>
                     <CardTitle className="flex items-center gap-2">
                       <Sparkles className="h-5 w-5" />
-                      Test Caption (Edge Functions Working!)
+                      AI-Generated Instagram Caption
                     </CardTitle>
                   </CardHeader>
                   <CardContent className="space-y-4">
@@ -387,8 +399,17 @@ const Dashboard = () => {
                         variant="outline"
                         disabled={generatingCaption}
                       >
-                        <RefreshCw className="mr-2 h-4 w-4" />
-                        Test Again
+                        {generatingCaption ? (
+                          <>
+                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                            Regenerating...
+                          </>
+                        ) : (
+                          <>
+                            <RefreshCw className="mr-2 h-4 w-4" />
+                            Regenerate Caption
+                          </>
+                        )}
                       </Button>
                     </div>
                   </CardContent>
