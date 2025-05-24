@@ -43,47 +43,60 @@ const CaptionGenerator = ({ scrapedData, selectedImageIndex, onCaptionGenerated 
 
   const handleGenerateCaption = async () => {
     setGeneratingCaption(true);
-    console.log('Generating AI caption with settings:', {
+    console.log('🚀 Starting caption generation with settings:', {
       title: scrapedData.title,
       model: selectedModel,
       tone: selectedTone,
       style: selectedStyle,
       length: selectedLength,
-      hasPrePrompt: !!prePrompt
+      hasPrePrompt: !!prePrompt,
+      imageUrl: scrapedData.images[selectedImageIndex]?.substring(0, 50) + '...'
     });
     
     try {
+      console.log('📡 Calling Supabase function: generate-caption');
+      
+      const requestBody = {
+        imageUrl: scrapedData.images[selectedImageIndex],
+        title: scrapedData.title,
+        description: scrapedData.description,
+        content: scrapedData.content,
+        url: scrapedData.url,
+        model: selectedModel,
+        tone: selectedTone,
+        style: selectedStyle,
+        length: selectedLength,
+        prePrompt: prePrompt.trim()
+      };
+      
+      console.log('📤 Request body:', requestBody);
+
       const { data, error } = await supabase.functions.invoke('generate-caption', {
-        body: {
-          imageUrl: scrapedData.images[selectedImageIndex],
-          title: scrapedData.title,
-          description: scrapedData.description,
-          content: scrapedData.content,
-          url: scrapedData.url,
-          model: selectedModel,
-          tone: selectedTone,
-          style: selectedStyle,
-          length: selectedLength,
-          prePrompt: prePrompt.trim()
-        }
+        body: requestBody
       });
 
+      console.log('📥 Supabase function response:', { data, error });
+
       if (error) {
-        console.error('Supabase function error:', error);
-        throw error;
+        console.error('❌ Supabase function error:', error);
+        showError(`Supabase error: ${error.message}`);
+        return;
       }
 
-      if (data.error) {
-        console.error('Function returned error:', data.error);
+      if (data?.error) {
+        console.error('❌ Function returned error:', data.error);
         if (data.error.includes('OpenRouter API key')) {
-          showError('Please add your OpenRouter API key to Supabase Edge Function secrets');
+          showError('❌ OpenRouter API key not configured in Supabase secrets');
+        } else if (data.error.includes('OpenRouter API error')) {
+          showError(`❌ OpenRouter API error: ${data.details || data.error}`);
         } else {
-          showError(`Caption generation failed: ${data.error}`);
+          showError(`❌ Caption generation failed: ${data.error}`);
         }
         return;
       }
 
-      if (data.caption) {
+      if (data?.caption) {
+        console.log('✅ Caption generated successfully:', data.caption.substring(0, 100) + '...');
         const caption = {
           caption: data.caption,
           imageUrl: scrapedData.images[selectedImageIndex],
@@ -92,15 +105,15 @@ const CaptionGenerator = ({ scrapedData, selectedImageIndex, onCaptionGenerated 
         };
         setGeneratedCaption(caption);
         onCaptionGenerated(caption);
-        showSuccess('AI caption generated successfully! 🤖✨');
-        console.log('AI-generated caption:', data.caption);
+        showSuccess('✅ AI caption generated successfully! 🤖✨');
       } else {
-        throw new Error('No caption received from AI');
+        console.error('❌ No caption in response:', data);
+        showError('❌ No caption received from AI - check edge function logs');
       }
       
     } catch (error) {
-      showError('Failed to generate AI caption. Check console for details.');
-      console.error('AI Caption generation error:', error);
+      console.error('❌ Caption generation error:', error);
+      showError(`❌ Failed to generate AI caption: ${error.message}`);
     } finally {
       setGeneratingCaption(false);
     }
