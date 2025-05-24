@@ -1,13 +1,14 @@
 import { useState } from 'react';
 import { useSupabaseClient, useUser } from '@supabase/auth-helpers-react';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Textarea } from '@/components/ui/textarea';
-import { LogOut, Sparkles, Link as LinkIcon, Loader2, Image as ImageIcon, Check, Copy, RefreshCw } from 'lucide-react';
+import { LogOut, Sparkles } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { showSuccess, showError } from '@/utils/toast';
+import URLInput from '@/components/URLInput';
+import ContentDisplay from '@/components/ContentDisplay';
+import ImageSelector from '@/components/ImageSelector';
+import CaptionGenerator from '@/components/CaptionGenerator';
 import InstagramPreview from '@/components/InstagramPreview';
 
 interface ScrapedData {
@@ -26,12 +27,10 @@ interface GeneratedCaption {
 }
 
 const Dashboard = () => {
-  const [url, setUrl] = useState('');
-  const [loading, setLoading] = useState(false);
   const [scrapedData, setScrapedData] = useState<ScrapedData | null>(null);
   const [selectedImageIndex, setSelectedImageIndex] = useState<number | null>(null);
-  const [generatingCaption, setGeneratingCaption] = useState(false);
   const [generatedCaption, setGeneratedCaption] = useState<GeneratedCaption | null>(null);
+  
   const user = useUser();
   const supabase = useSupabaseClient();
   const navigate = useNavigate();
@@ -42,140 +41,23 @@ const Dashboard = () => {
     navigate('/login');
   };
 
-  const isValidUrl = (string: string) => {
-    try {
-      new URL(string);
-      return true;
-    } catch (_) {
-      return false;
-    }
-  };
-
-  const handleUrlSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    
-    if (!url.trim()) {
-      showError('Please enter a URL');
-      return;
-    }
-
-    if (!isValidUrl(url)) {
-      showError('Please enter a valid URL');
-      return;
-    }
-
-    setLoading(true);
-    console.log('Processing URL:', url);
-    
-    try {
-      const { data, error } = await supabase.functions.invoke('scrape-url', {
-        body: { url }
-      });
-
-      if (error) {
-        throw error;
-      }
-
-      if (data.error) {
-        throw new Error(data.error);
-      }
-
-      setScrapedData(data);
-      setSelectedImageIndex(null);
-      setGeneratedCaption(null);
-      showSuccess(`Found ${data.images.length} images from the URL!`);
-      console.log('Scraped data:', data);
-      
-    } catch (error) {
-      showError('Failed to scrape URL. Please try again.');
-      console.error('URL processing error:', error);
-    } finally {
-      setLoading(false);
-    }
+  const handleDataScraped = (data: ScrapedData) => {
+    setScrapedData(data);
+    setSelectedImageIndex(null);
+    setGeneratedCaption(null);
   };
 
   const handleImageSelect = (index: number) => {
     setSelectedImageIndex(index);
-    setGeneratedCaption(null); // Reset caption when selecting new image
+    setGeneratedCaption(null);
     showSuccess('Image selected! Ready to generate caption.');
-    console.log('Selected image:', scrapedData?.images[index]);
   };
 
-  const handleGenerateCaption = async () => {
-    if (selectedImageIndex === null || !scrapedData) {
-      showError('Please select an image first');
-      return;
-    }
-
-    setGeneratingCaption(true);
-    console.log('Generating AI caption with content:', {
-      title: scrapedData.title,
-      contentLength: scrapedData.content.length,
-      description: scrapedData.description
-    });
-    
-    try {
-      // Call the REAL AI caption generation function
-      console.log('Calling generate-caption function with real AI...');
-      const { data, error } = await supabase.functions.invoke('generate-caption', {
-        body: {
-          imageUrl: scrapedData.images[selectedImageIndex],
-          title: scrapedData.title,
-          description: scrapedData.description,
-          content: scrapedData.content,
-          url: scrapedData.url
-        }
-      });
-
-      console.log('AI Caption response:', { data, error });
-
-      if (error) {
-        console.error('Supabase function error:', error);
-        throw error;
-      }
-
-      if (data.error) {
-        console.error('Function returned error:', data.error);
-        if (data.error.includes('OpenRouter API key')) {
-          showError('Please add your OpenRouter API key to Supabase Edge Function secrets');
-        } else {
-          showError(`Caption generation failed: ${data.error}`);
-        }
-        return;
-      }
-
-      if (data.caption) {
-        setGeneratedCaption({
-          caption: data.caption,
-          imageUrl: scrapedData.images[selectedImageIndex],
-          title: scrapedData.title,
-          url: scrapedData.url
-        });
-        showSuccess('AI caption generated successfully! 🤖✨');
-        console.log('AI-generated caption:', data.caption);
-      } else {
-        throw new Error('No caption received from AI');
-      }
-      
-    } catch (error) {
-      showError('Failed to generate AI caption. Check console for details.');
-      console.error('AI Caption generation error:', error);
-    } finally {
-      setGeneratingCaption(false);
-    }
-  };
-
-  const copyToClipboard = async (text: string) => {
-    try {
-      await navigator.clipboard.writeText(text);
-      showSuccess('Caption copied to clipboard!');
-    } catch (error) {
-      showError('Failed to copy to clipboard');
-    }
+  const handleCaptionGenerated = (caption: GeneratedCaption) => {
+    setGeneratedCaption(caption);
   };
 
   const resetForm = () => {
-    setUrl('');
     setScrapedData(null);
     setSelectedImageIndex(null);
     setGeneratedCaption(null);
@@ -216,207 +98,31 @@ const Dashboard = () => {
             </CardContent>
           </Card>
 
-          {/* URL Input Form */}
-          {!scrapedData && (
-            <Card className="max-w-2xl mx-auto">
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <LinkIcon className="h-5 w-5" />
-                  Enter URL to Transform
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <form onSubmit={handleUrlSubmit} className="space-y-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="url">Website URL</Label>
-                    <Input
-                      id="url"
-                      type="url"
-                      placeholder="https://example.com/article"
-                      value={url}
-                      onChange={(e) => setUrl(e.target.value)}
-                      className="text-lg"
-                      disabled={loading}
-                    />
-                    <p className="text-sm text-gray-500">
-                      Paste any article, blog post, or webpage URL to extract images and content
-                    </p>
-                  </div>
-                  <Button 
-                    type="submit" 
-                    className="w-full text-lg py-6" 
-                    disabled={loading || !url.trim()}
-                  >
-                    {loading ? (
-                      <>
-                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                        Scraping URL...
-                      </>
-                    ) : (
-                      <>
-                        <Sparkles className="mr-2 h-4 w-4" />
-                        Transform Post
-                      </>
-                    )}
-                  </Button>
-                </form>
-              </CardContent>
-            </Card>
-          )}
+          {/* URL Input */}
+          {!scrapedData && <URLInput onDataScraped={handleDataScraped} />}
 
-          {/* Scraped Results */}
+          {/* Content Processing */}
           {scrapedData && (
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
               {/* Left Column - Content & Controls */}
               <div className="space-y-6">
-                {/* Page Info */}
-                <Card>
-                  <CardHeader>
-                    <CardTitle className="flex items-center gap-2">
-                      <LinkIcon className="h-5 w-5" />
-                      Scraped Content
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="space-y-3">
-                      <div>
-                        <h3 className="font-semibold text-lg">{scrapedData.title}</h3>
-                        {scrapedData.description && (
-                          <p className="text-gray-600 mt-1">{scrapedData.description}</p>
-                        )}
-                      </div>
-                      <div className="flex items-center gap-2 text-sm text-gray-500">
-                        <ImageIcon className="h-4 w-4" />
-                        Found {scrapedData.images.length} images
-                        {selectedImageIndex !== null && (
-                          <span className="text-green-600 font-medium">
-                            • Image {selectedImageIndex + 1} selected
-                          </span>
-                        )}
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
+                <ContentDisplay 
+                  data={scrapedData} 
+                  selectedImageIndex={selectedImageIndex} 
+                />
+                
+                <ImageSelector
+                  images={scrapedData.images}
+                  selectedIndex={selectedImageIndex}
+                  onImageSelect={handleImageSelect}
+                />
 
-                {/* Images Grid */}
-                {scrapedData.images.length > 0 && (
-                  <Card>
-                    <CardHeader>
-                      <CardTitle>Select an Image</CardTitle>
-                      <p className="text-sm text-gray-600">Click on an image to select it for your Instagram post</p>
-                    </CardHeader>
-                    <CardContent>
-                      <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-                        {scrapedData.images.map((imageUrl, index) => (
-                          <div 
-                            key={index}
-                            onClick={() => handleImageSelect(index)}
-                            className={`aspect-square bg-gray-100 rounded-lg overflow-hidden cursor-pointer transition-all relative ${
-                              selectedImageIndex === index 
-                                ? 'ring-4 ring-purple-500 ring-offset-2' 
-                                : 'hover:ring-2 hover:ring-purple-300'
-                            }`}
-                          >
-                            <img
-                              src={imageUrl}
-                              alt={`Image ${index + 1}`}
-                              className="w-full h-full object-cover"
-                              onError={(e) => {
-                                const target = e.target as HTMLImageElement;
-                                target.style.display = 'none';
-                              }}
-                            />
-                            {selectedImageIndex === index && (
-                              <div className="absolute inset-0 bg-purple-500 bg-opacity-20 flex items-center justify-center">
-                                <div className="bg-purple-500 rounded-full p-2">
-                                  <Check className="h-6 w-6 text-white" />
-                                </div>
-                              </div>
-                            )}
-                          </div>
-                        ))}
-                      </div>
-                    </CardContent>
-                  </Card>
-                )}
-
-                {/* Generate Caption Button */}
-                {selectedImageIndex !== null && !generatedCaption && (
-                  <Card>
-                    <CardContent className="pt-6">
-                      <div className="text-center space-y-4">
-                        <p className="text-lg font-medium">Perfect! You've selected your image.</p>
-                        <Button 
-                          onClick={handleGenerateCaption}
-                          size="lg"
-                          className="text-lg px-8 py-6"
-                          disabled={generatingCaption}
-                        >
-                          {generatingCaption ? (
-                            <>
-                              <Loader2 className="mr-2 h-5 w-5 animate-spin" />
-                              AI Generating Caption...
-                            </>
-                          ) : (
-                            <>
-                              <Sparkles className="mr-2 h-5 w-5" />
-                              Generate AI Caption
-                            </>
-                          )}
-                        </Button>
-                        <p className="text-sm text-gray-500">
-                          AI will analyze "{scrapedData.title}" and create a custom Instagram caption
-                        </p>
-                      </div>
-                    </CardContent>
-                  </Card>
-                )}
-
-                {/* Generated Caption */}
-                {generatedCaption && (
-                  <Card>
-                    <CardHeader>
-                      <CardTitle className="flex items-center gap-2">
-                        <Sparkles className="h-5 w-5" />
-                        AI-Generated Instagram Caption
-                      </CardTitle>
-                    </CardHeader>
-                    <CardContent className="space-y-4">
-                      <div className="bg-gray-50 rounded-lg p-4">
-                        <Textarea
-                          value={generatedCaption.caption}
-                          readOnly
-                          className="min-h-[150px] resize-none border-none bg-transparent text-base"
-                        />
-                      </div>
-                      <div className="flex gap-2">
-                        <Button 
-                          onClick={() => copyToClipboard(generatedCaption.caption)}
-                          className="flex-1"
-                        >
-                          <Copy className="mr-2 h-4 w-4" />
-                          Copy Caption
-                        </Button>
-                        <Button 
-                          onClick={handleGenerateCaption}
-                          variant="outline"
-                          disabled={generatingCaption}
-                        >
-                          {generatingCaption ? (
-                            <>
-                              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                              Regenerating...
-                            </>
-                          ) : (
-                            <>
-                              <RefreshCw className="mr-2 h-4 w-4" />
-                              Regenerate Caption
-                            </>
-                          )}
-                        </Button>
-                      </div>
-                    </CardContent>
-                  </Card>
+                {selectedImageIndex !== null && (
+                  <CaptionGenerator
+                    scrapedData={scrapedData}
+                    selectedImageIndex={selectedImageIndex}
+                    onCaptionGenerated={handleCaptionGenerated}
+                  />
                 )}
 
                 {/* Reset Button */}
