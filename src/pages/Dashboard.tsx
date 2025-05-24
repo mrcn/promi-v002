@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { LogOut, Sparkles, Link as LinkIcon, Loader2, Image as ImageIcon } from 'lucide-react';
+import { LogOut, Sparkles, Link as LinkIcon, Loader2, Image as ImageIcon, Check } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { showSuccess, showError } from '@/utils/toast';
 
@@ -20,6 +20,7 @@ const Dashboard = () => {
   const [url, setUrl] = useState('');
   const [loading, setLoading] = useState(false);
   const [scrapedData, setScrapedData] = useState<ScrapedData | null>(null);
+  const [selectedImageIndex, setSelectedImageIndex] = useState<number | null>(null);
   const user = useUser();
   const supabase = useSupabaseClient();
   const navigate = useNavigate();
@@ -69,6 +70,7 @@ const Dashboard = () => {
       }
 
       setScrapedData(data);
+      setSelectedImageIndex(null); // Reset selection
       showSuccess(`Found ${data.images.length} images from the URL!`);
       console.log('Scraped data:', data);
       
@@ -80,9 +82,31 @@ const Dashboard = () => {
     }
   };
 
+  const handleImageSelect = (index: number) => {
+    setSelectedImageIndex(index);
+    showSuccess('Image selected! Ready to generate caption.');
+    console.log('Selected image:', scrapedData?.images[index]);
+  };
+
   const resetForm = () => {
     setUrl('');
     setScrapedData(null);
+    setSelectedImageIndex(null);
+  };
+
+  const handleGenerateCaption = () => {
+    if (selectedImageIndex === null || !scrapedData) {
+      showError('Please select an image first');
+      return;
+    }
+    
+    // TODO: Add caption generation in next step
+    showSuccess('Caption generation coming next!');
+    console.log('Generating caption for:', {
+      image: scrapedData.images[selectedImageIndex],
+      content: scrapedData.content,
+      title: scrapedData.title
+    });
   };
 
   return (
@@ -190,6 +214,11 @@ const Dashboard = () => {
                     <div className="flex items-center gap-2 text-sm text-gray-500">
                       <ImageIcon className="h-4 w-4" />
                       Found {scrapedData.images.length} images
+                      {selectedImageIndex !== null && (
+                        <span className="text-green-600 font-medium">
+                          • Image {selectedImageIndex + 1} selected
+                        </span>
+                      )}
                     </div>
                   </div>
                 </CardContent>
@@ -200,14 +229,19 @@ const Dashboard = () => {
                 <Card>
                   <CardHeader>
                     <CardTitle>Select an Image</CardTitle>
-                    <p className="text-sm text-gray-600">Choose an image for your Instagram post</p>
+                    <p className="text-sm text-gray-600">Click on an image to select it for your Instagram post</p>
                   </CardHeader>
                   <CardContent>
                     <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
                       {scrapedData.images.map((imageUrl, index) => (
                         <div 
                           key={index}
-                          className="aspect-square bg-gray-100 rounded-lg overflow-hidden cursor-pointer hover:ring-2 hover:ring-purple-500 transition-all"
+                          onClick={() => handleImageSelect(index)}
+                          className={`aspect-square bg-gray-100 rounded-lg overflow-hidden cursor-pointer transition-all relative ${
+                            selectedImageIndex === index 
+                              ? 'ring-4 ring-purple-500 ring-offset-2' 
+                              : 'hover:ring-2 hover:ring-purple-300'
+                          }`}
                         >
                           <img
                             src={imageUrl}
@@ -218,8 +252,34 @@ const Dashboard = () => {
                               target.style.display = 'none';
                             }}
                           />
+                          {selectedImageIndex === index && (
+                            <div className="absolute inset-0 bg-purple-500 bg-opacity-20 flex items-center justify-center">
+                              <div className="bg-purple-500 rounded-full p-2">
+                                <Check className="h-6 w-6 text-white" />
+                              </div>
+                            </div>
+                          )}
                         </div>
                       ))}
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
+
+              {/* Generate Caption Button */}
+              {selectedImageIndex !== null && (
+                <Card>
+                  <CardContent className="pt-6">
+                    <div className="text-center space-y-4">
+                      <p className="text-lg font-medium">Perfect! You've selected your image.</p>
+                      <Button 
+                        onClick={handleGenerateCaption}
+                        size="lg"
+                        className="text-lg px-8 py-6"
+                      >
+                        <Sparkles className="mr-2 h-5 w-5" />
+                        Generate Instagram Caption
+                      </Button>
                     </div>
                   </CardContent>
                 </Card>
