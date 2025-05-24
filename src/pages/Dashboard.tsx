@@ -107,9 +107,12 @@ const Dashboard = () => {
     }
 
     setGeneratingCaption(true);
+    console.log('Starting caption generation...');
     
     try {
-      const { data, error } = await supabase.functions.invoke('generate-caption', {
+      // First try the test function to see if edge functions work at all
+      console.log('Calling test-caption function...');
+      const { data, error } = await supabase.functions.invoke('test-caption', {
         body: {
           imageUrl: scrapedData.images[selectedImageIndex],
           title: scrapedData.title,
@@ -119,20 +122,33 @@ const Dashboard = () => {
         }
       });
 
+      console.log('Function response:', { data, error });
+
       if (error) {
+        console.error('Supabase function error:', error);
         throw error;
       }
 
       if (data.error) {
+        console.error('Function returned error:', data.error);
         throw new Error(data.error);
       }
 
-      setGeneratedCaption(data);
-      showSuccess('Caption generated successfully! 🎉');
-      console.log('Generated caption:', data);
+      if (data.success) {
+        setGeneratedCaption({
+          caption: data.caption,
+          imageUrl: scrapedData.images[selectedImageIndex],
+          title: scrapedData.title,
+          url: scrapedData.url
+        });
+        showSuccess('Test caption generated successfully! 🎉');
+        console.log('Test successful:', data);
+      } else {
+        throw new Error('Unexpected response format');
+      }
       
     } catch (error) {
-      showError('Failed to generate caption. Please try again.');
+      showError('Failed to generate caption. Check console for details.');
       console.error('Caption generation error:', error);
     } finally {
       setGeneratingCaption(false);
@@ -327,12 +343,12 @@ const Dashboard = () => {
                         {generatingCaption ? (
                           <>
                             <Loader2 className="mr-2 h-5 w-5 animate-spin" />
-                            Generating Caption...
+                            Testing Caption Generation...
                           </>
                         ) : (
                           <>
                             <Sparkles className="mr-2 h-5 w-5" />
-                            Generate Instagram Caption
+                            Test Caption Generation
                           </>
                         )}
                       </Button>
@@ -347,7 +363,7 @@ const Dashboard = () => {
                   <CardHeader>
                     <CardTitle className="flex items-center gap-2">
                       <Sparkles className="h-5 w-5" />
-                      Your Instagram Caption
+                      Test Caption (Edge Functions Working!)
                     </CardTitle>
                   </CardHeader>
                   <CardContent className="space-y-4">
@@ -372,7 +388,7 @@ const Dashboard = () => {
                         disabled={generatingCaption}
                       >
                         <RefreshCw className="mr-2 h-4 w-4" />
-                        Regenerate
+                        Test Again
                       </Button>
                     </div>
                   </CardContent>
