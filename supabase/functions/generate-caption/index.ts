@@ -15,6 +15,7 @@ interface CaptionRequest {
   tone?: string;
   style?: string;
   length?: string;
+  prePrompt?: string;
 }
 
 serve(async (req) => {
@@ -31,10 +32,11 @@ serve(async (req) => {
       description, 
       content, 
       url,
-      model = 'anthropic/claude-3.5-sonnet',
+      model = 'google/gemma-2-9b-it:free',
       tone = 'casual',
       style = 'tips',
-      length = 'medium'
+      length = 'medium',
+      prePrompt = ''
     }: CaptionRequest = await req.json()
     
     console.log('Request data:', { 
@@ -43,7 +45,8 @@ serve(async (req) => {
       model, 
       tone, 
       style, 
-      length 
+      length,
+      hasPrePrompt: !!prePrompt
     })
     
     if (!imageUrl || !title) {
@@ -106,7 +109,7 @@ serve(async (req) => {
     }
 
     // Create a customized prompt based on user selections
-    const basePrompt = `Create an engaging Instagram caption for this content:
+    let basePrompt = `Create an engaging Instagram caption for this content:
 
 Title: ${title}
 Description: ${description || 'No description available'}
@@ -117,7 +120,16 @@ TONE: ${toneInstructions[tone as keyof typeof toneInstructions] || toneInstructi
 
 STYLE: ${styleInstructions[style as keyof typeof styleInstructions] || styleInstructions.tips}
 
-LENGTH: ${lengthInstructions[length as keyof typeof lengthInstructions] || lengthInstructions.medium}
+LENGTH: ${lengthInstructions[length as keyof typeof lengthInstructions] || lengthInstructions.medium}`
+
+    // Add custom pre-prompt if provided
+    if (prePrompt && prePrompt.trim()) {
+      basePrompt += `
+
+CUSTOM INSTRUCTIONS: ${prePrompt.trim()}`
+    }
+
+    basePrompt += `
 
 Requirements:
 - Make it engaging and Instagram-friendly
@@ -126,7 +138,14 @@ Requirements:
 - Make it conversational and authentic
 - Focus on the key insights or interesting points from the content
 - Don't mention that this is from a URL or article
-- Follow the tone, style, and length guidelines above
+- Follow the tone, style, and length guidelines above`
+
+    if (prePrompt && prePrompt.trim()) {
+      basePrompt += `
+- Incorporate the custom instructions provided above`
+    }
+
+    basePrompt += `
 
 Generate a caption that would make people want to engage with this post:`
 
@@ -198,7 +217,7 @@ Generate a caption that would make people want to engage with this post:`
         imageUrl,
         title,
         url,
-        settings: { model, tone, style, length }
+        settings: { model, tone, style, length, prePrompt }
       }),
       { 
         headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
