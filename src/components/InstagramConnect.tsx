@@ -47,23 +47,41 @@ const InstagramConnect: React.FC<InstagramConnectProps> = ({ onAccountConnected 
   };
 
   const handleConnect = () => {
+    // Check if client ID is configured
     const clientId = import.meta.env.VITE_INSTAGRAM_CLIENT_ID;
-    const redirectUri = `${window.location.origin}/instagram-callback`;
-
+    
     if (!clientId) {
-      showError('Instagram integration not configured');
+      showError('Instagram Client ID not configured. Please add VITE_INSTAGRAM_CLIENT_ID to your environment variables.');
       return;
     }
+
+    console.log('Instagram Client ID:', clientId);
+    
+    const redirectUri = `${window.location.origin}/instagram-callback`;
+    console.log('Redirect URI:', redirectUri);
 
     const scope = 'instagram_basic,instagram_content_publish';
     const authUrl = `https://api.instagram.com/oauth/authorize?client_id=${clientId}&redirect_uri=${encodeURIComponent(
       redirectUri
     )}&scope=${scope}&response_type=code`;
 
-    // Open OAuth in a new tab to avoid iframe CSP/cookie blocking
-    const newWindow = window.open(authUrl, '_blank', 'noopener,noreferrer');
-    if (!newWindow) {
-      // Fallback if popups are blocked
+    console.log('Auth URL:', authUrl);
+
+    // Try to open in new tab first
+    try {
+      const newWindow = window.open(authUrl, '_blank', 'noopener,noreferrer');
+      
+      // Check if popup was blocked after a short delay
+      setTimeout(() => {
+        if (!newWindow || newWindow.closed) {
+          console.log('Popup blocked, redirecting in current window');
+          window.location.href = authUrl;
+        }
+      }, 100);
+      
+    } catch (error) {
+      // If window.open fails, fallback to current window
+      console.log('window.open failed, redirecting in current window');
       window.location.href = authUrl;
     }
   };
@@ -137,12 +155,18 @@ const InstagramConnect: React.FC<InstagramConnectProps> = ({ onAccountConnected 
             Connect Instagram Account
           </Button>
           <p className="text-xs text-gray-500">
-            A new tab will open to complete login. Make sure pop-ups are allowed.
+            Make sure you have VITE_INSTAGRAM_CLIENT_ID configured in your environment.
           </p>
-        </div>
-      </CardContent>
-    </Card>
-  );
+          <div className="text-xs text-gray-400 bg-gray-50 p-2 rounded">
+            <strong>Setup Required:</strong>
+            <br />1. Create Instagram App at developers.facebook.com
+            <br />2. Add VITE_INSTAGRAM_CLIENT_ID to your .env file
+            <br />3. Set redirect URI to: {window.location.origin}/instagram-callback
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
 };
 
 export default InstagramConnect;
