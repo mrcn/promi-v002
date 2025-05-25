@@ -20,57 +20,57 @@ serve(async (req) => {
 
   try {
     const { url } = await req.json()
-    
     if (!url) {
       return new Response(
         JSON.stringify({ error: 'URL is required' }),
-        { 
-          status: 400, 
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
-        }
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       )
     }
 
-    console.log('Scraping URL:', url)
-
-    // Fetch the webpage
+    // Fetch the webpage HTML
     const response = await fetch(url, {
-      headers: {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
-      }
+      headers: { 'User-Agent': 'Mozilla/5.0' }
     })
-
     if (!response.ok) {
       throw new Error(`Failed to fetch URL: ${response.status}`)
     }
-
     const html = await response.text()
-    
-    // Extract images using regex patterns
-    const imageRegex = /<img[^>]+src\s*=\s*['"](https?:\/\/[^'"]+)['"]/gi
-    const ogImageRegex = /<meta[^>]+property\s*=\s*['"](og:image|twitter:image)['"]\s+content\s*=\s*['"](https?:\/\/[^'"]+)['"]/gi
-    
-    const images: string[] = []
-    let match
 
-    // Extract Open Graph and Twitter images (usually higher quality)
-    while ((match = ogImageRegex.exec(html)) !== null) {
-      if (match[2] && !images.includes(match[2])) {
-        images.push(match[2])
+    // Use a Set to dedupe
+    const imagesSet = new Set<string>()
+    let match: RegExpExecArray | null
+
+    // 1) OG and Twitter meta tags (property or name)
+    const metaRegex = /<meta[^>]+(?:property|name)\s*=\s*['"](og:image|twitter:image)['"][^>]*content\s*=\s*['"]([^'"]+)['"]/gi
+    while ((match = metaRegex.exec(html)) !== null) {
+      const src = match[2].trim()
+      try {
+        imagesSet.add(new URL(src, url).toString())
+      } catch {
+        // skip invalid
       }
     }
 
-    // Extract regular img tags
-    while ((match = imageRegex.exec(html)) !== null) {
-      if (match[1] && !images.includes(match[1])) {
-        // Filter out small images, icons, and common non-content images
-        const imgUrl = match[1].toLowerCase()
-        if (!imgUrl.includes('icon') && 
-            !imgUrl.includes('logo') && 
-            !imgUrl.includes('avatar') &&
-            !imgUrl.includes('button') &&
-            !imgUrl.endsWith('.svg')) {
-          images.push(match[1])
+    // 2) Standard <img> tags with src
+    const imgRegex = /<img[^>]+src\s*=\s*['"]([^'"]+)['"]/gi
+    while ((match = imgRegex.exec(html)) !== null) {
+      const src = match[1].trim()
+      try {
+        imagesSet.add(new URL(src, url).toString())
+      } catch {
+        // skip invalid
+      }
+    }
+
+    // 3) Handle srcset attributes for additional resolutions
+    const srcsetRegex = /<img[^>]+srcset\s*=\s*['"]([^'"]+)['"]/gi
+    while ((match = srcsetRegex.exec(html)) !== null) {
+      const parts = match[1].split(',').map(s => s.trim().split(/\s+/)[0])
+      for (const candidate of parts) {
+        try {
+          imagesSet.add(new URL(candidate, url).toString())
+        } catch {
+          // skip invalid
         }
       }
     }
@@ -83,50 +83,38 @@ serve(async (req) => {
     // Extract description
     const descMatch = html.match(/<meta[^>]+name\s*=\s*['"]description['"][^>]+content\s*=\s*['"]([^'"]+)['"]/i)
     const ogDescMatch = html.match(/<meta[^>]+property\s*=\s*['"]og:description['"][^>]+content\s*=\s*['"]([^'"]+)['"]/i)
-    const description = ogDescMatch?.[1] || descMatch?.[1] || ''
+    const description = (ogDescMatch?.[1] || descMatch?.[1] || '').trim()
 
-    // Extract main content (simplified - remove HTML tags)
-    const contentMatch = html.replace(/<script[^>]*>[\s\S]*?<\/script>/gi, '')
-                             .replace(/<style[^>]*>[\s\S]*?<\/style>/gi, '')
-                             .replace(/<[^>]+>/g, ' ')
-                             .replace(/\s+/g, ' ')
-                             .trim()
-    
-    const content = contentMatch.substring(0, 2000) // Limit content length
+    // Clean and truncate main content
+    const text = html
+      .replace(/<script[^>]*>[\s\S]*?<\/script>/gi, '')
+      .replace(/<style[^>]*>[\s\S]*?<\/style>/gi, '')
+      .replace(/<[^>]+>/g, ' ')
+      .replace(/\s+/g, ' ')
+      .trim()
+    const content = text.substring(0, 2000)
+
+    // Build final array
+    const images = Array.from(imagesSet)
 
     const scrapedData: ScrapedData = {
-      images: images.slice(0, 10), // Limit to first 10 images
+      images,
       title: title.trim(),
-      description: description.trim(),
+      description,
       content,
       url
     }
 
-    console.log('Scraped data:', {
-      url,
-      imageCount: scrapedData.images.length,
-      title: scrapedData.title,
-      descriptionLength: scrapedData.description.length
-    })
-
     return new Response(
       JSON.stringify(scrapedData),
-      { 
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
-      }
+      { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     )
 
   } catch (error) {
     console.error('Scraping error:', error)
     return new Response(
-      JSON.stringify({ 
-        error: 'Failed to scrape URL', 
-        details: error.message 
-      }),
-      { 
-        status: 500, 
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
-      }
+      JSON.stringify({ error: 'Failed to scrape URL', details: error.message }),
+      { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     )
   }
 })
