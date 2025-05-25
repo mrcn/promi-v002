@@ -81,12 +81,15 @@ const CaptionGenerator = ({ scrapedData, selectedImageIndex, onCaptionGenerated 
       console.log('📥 Supabase function response:', { data, error });
 
       if (error) {
+        // Always show the raw data field if present
         let errorMsg = error.message || 'Unknown error';
-        // Try to show the error response body if available
         if (data) {
-          errorMsg += ` | Data: ${JSON.stringify(data)}`;
+          if (typeof data === 'object') {
+            errorMsg += ` | Edge function response: ${JSON.stringify(data)}`;
+          } else {
+            errorMsg += ` | Edge function response: ${String(data)}`;
+          }
         }
-        // Show the full error object as a fallback
         errorMsg += ` | Error object: ${JSON.stringify(error)}`;
         setLastError(errorMsg);
         console.error('❌ Supabase function error:', errorMsg, error, data);
