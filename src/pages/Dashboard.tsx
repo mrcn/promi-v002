@@ -6,7 +6,6 @@ import { LogOut, Sparkles } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { showSuccess, showError } from '@/utils/toast';
 import URLInput from '@/components/URLInput';
-import ContentDisplay from '@/components/ContentDisplay';
 import ImageSelector from '@/components/ImageSelector';
 import CaptionGenerator from '@/components/CaptionGenerator';
 import InstagramPreview from '@/components/InstagramPreview';
@@ -104,13 +103,8 @@ const Dashboard = () => {
           {/* Content Processing */}
           {scrapedData && (
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-              {/* Left Column - Content & Controls */}
+              {/* Left Column - Controls */}
               <div className="space-y-6">
-                <ContentDisplay 
-                  data={scrapedData} 
-                  selectedImageIndex={selectedImageIndex} 
-                />
-                
                 <ImageSelector
                   images={scrapedData.images}
                   selectedIndex={selectedImageIndex}
