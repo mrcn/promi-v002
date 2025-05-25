@@ -1,4 +1,3 @@
-, lazy-loaded attributes, and CSS background images">
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts"
 
 const corsHeaders = {
@@ -7,11 +6,11 @@ const corsHeaders = {
 }
 
 interface ScrapedData {
-  images: string[];
-  title: string;
-  description: string;
-  content: string;
-  url: string;
+  images: string[]
+  title: string
+  description: string
+  content: string
+  url: string
 }
 
 serve(async (req) => {
@@ -41,7 +40,7 @@ serve(async (req) => {
     const imagesSet = new Set<string>()
     let match: RegExpExecArray | null
 
-    // 1) OG and Twitter meta tags (property or name)
+    // 1) OG and Twitter meta tags
     const metaRegex = /<meta[^>]+(?:property|name)\s*=\s*['"](og:image|twitter:image)['"][^>]*content\s*=\s*['"]([^'"]+)['"]/gi
     while ((match = metaRegex.exec(html)) !== null) {
       const src = match[2].trim()
@@ -52,7 +51,7 @@ serve(async (req) => {
       }
     }
 
-    // 2) Standard <img> tags with src
+    // 2) <img src>
     const imgRegex = /<img[^>]+src\s*=\s*['"]([^'"]+)['"]/gi
     while ((match = imgRegex.exec(html)) !== null) {
       const src = match[1].trim()
@@ -63,7 +62,7 @@ serve(async (req) => {
       }
     }
 
-    // 3) Handle <img> srcset attributes
+    // 3) <img srcset>
     const srcsetRegex = /<img[^>]+srcset\s*=\s*['"]([^'"]+)['"]/gi
     while ((match = srcsetRegex.exec(html)) !== null) {
       const parts = match[1].split(',').map(s => s.trim().split(/\s+/)[0])
@@ -76,7 +75,7 @@ serve(async (req) => {
       }
     }
 
-    // 4) <source> tags with src
+    // 4) <source src>
     const sourceSrcRegex = /<source[^>]+src\s*=\s*['"]([^'"]+)['"]/gi
     while ((match = sourceSrcRegex.exec(html)) !== null) {
       const src = match[1].trim()
@@ -87,7 +86,7 @@ serve(async (req) => {
       }
     }
 
-    // 5) <source> srcset attributes
+    // 5) <source srcset>
     const sourceSrcsetRegex = /<source[^>]+srcset\s*=\s*['"]([^'"]+)['"]/gi
     while ((match = sourceSrcsetRegex.exec(html)) !== null) {
       const parts = match[1].split(',').map(s => s.trim().split(/\s+/)[0])
@@ -100,7 +99,7 @@ serve(async (req) => {
       }
     }
 
-    // 6) Lazy-loaded <img> data-src
+    // 6) <img data-src>
     const dataSrcRegex = /<img[^>]+data-src\s*=\s*['"]([^'"]+)['"]/gi
     while ((match = dataSrcRegex.exec(html)) !== null) {
       const src = match[1].trim()
@@ -111,7 +110,7 @@ serve(async (req) => {
       }
     }
 
-    // 7) Lazy-loaded <img> data-srcset
+    // 7) <img data-srcset>
     const dataSrcsetRegex = /<img[^>]+data-srcset\s*=\s*['"]([^'"]+)['"]/gi
     while ((match = dataSrcsetRegex.exec(html)) !== null) {
       const parts = match[1].split(',').map(s => s.trim().split(/\s+/)[0])
@@ -124,7 +123,7 @@ serve(async (req) => {
       }
     }
 
-    // 8) Inline CSS background-image URLs
+    // 8) CSS background-image
     const bgRegex = /background-image\s*:\s*url\((?:'|")?([^)'"]+)(?:'|")?\)/gi
     while ((match = bgRegex.exec(html)) !== null) {
       const src = match[1].trim()
@@ -135,12 +134,11 @@ serve(async (req) => {
       }
     }
 
-    // Extract title
+    // Extract title and description
     const titleMatch = html.match(/<title[^>]*>([^<]+)<\/title>/i)
     const ogTitleMatch = html.match(/<meta[^>]+property\s*=\s*['"]og:title['"][^>]+content\s*=\s*['"]([^'"]+)['"]/i)
     const title = ogTitleMatch?.[1] || titleMatch?.[1] || 'Untitled'
 
-    // Extract description
     const descMatch = html.match(/<meta[^>]+name\s*=\s*['"]description['"][^>]+content\s*=\s*['"]([^'"]+)['"]/i)
     const ogDescMatch = html.match(/<meta[^>]+property\s*=\s*['"]og:description['"][^>]+content\s*=\s*['"]([^'"]+)['"]/i)
     const description = (ogDescMatch?.[1] || descMatch?.[1] || '').trim()
@@ -154,11 +152,8 @@ serve(async (req) => {
       .trim()
     const content = text.substring(0, 2000)
 
-    // Build final array
-    const images = Array.from(imagesSet)
-
     const scrapedData: ScrapedData = {
-      images,
+      images: Array.from(imagesSet),
       title: title.trim(),
       description,
       content,
