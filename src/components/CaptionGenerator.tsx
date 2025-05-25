@@ -45,7 +45,7 @@ const CaptionGenerator = ({ scrapedData, selectedImageIndex, onCaptionGenerated 
   const handleGenerateCaption = async () => {
     setGeneratingCaption(true);
     setLastError(null);
-    setGeneratedCaption(null); // Reset previous caption on regenerate
+    setGeneratedCaption(null);
     console.log('🚀 Starting caption generation with settings:', {
       title: scrapedData.title,
       model: selectedModel,
@@ -74,32 +74,46 @@ const CaptionGenerator = ({ scrapedData, selectedImageIndex, onCaptionGenerated 
       
       console.log('📤 Request body:', requestBody);
 
-      const { data, error } = await supabase.functions.invoke('generate-caption', {
+      const response = await supabase.functions.invoke('generate-caption', {
         body: requestBody
       });
 
-      // Log everything for debugging
-      console.log('📥 Supabase function response:', { data, error });
+      console.log('📥 Raw Supabase response:', response);
 
-      if (error || (data && data.error)) {
-        // Always show the raw data and error fields, even if undefined
-        let errorMsg = '';
-        if (error) {
-          errorMsg += `Supabase error: ${error.message || JSON.stringify(error)}`;
-        }
+      // Handle the response more explicitly
+      const { data, error } = response;
+
+      // If there's an error OR if data contains an error field
+      if (error) {
+        console.error('❌ Supabase client error:', error);
+        let errorMsg = `Supabase client error: ${error.message}`;
+        
+        // Try to get the actual error response from data
         if (data) {
-          errorMsg += ` | Edge function response: ${typeof data === 'object' ? JSON.stringify(data) : String(data)}`;
+          console.log('📄 Error response data:', data);
+          if (typeof data === 'object' && data.error) {
+            errorMsg = `${data.error}${data.details ? ': ' + data.details : ''}`;
+          } else {
+            errorMsg += ` | Response data: ${JSON.stringify(data)}`;
+          }
         }
-        if (!errorMsg) {
-          errorMsg = 'Unknown error occurred. No error or data returned.';
-        }
+        
         setLastError(errorMsg);
-        console.error('❌ Supabase function error:', errorMsg, error, data);
         showError(errorMsg);
         return;
       }
 
-      if (data?.caption) {
+      // Check if data has an error field (edge function returned error)
+      if (data && typeof data === 'object' && data.error) {
+        console.error('❌ Edge function error:', data);
+        const errorMsg = `${data.error}${data.details ? ': ' + data.details : ''}`;
+        setLastError(errorMsg);
+        showError(errorMsg);
+        return;
+      }
+
+      // Success case
+      if (data && data.caption) {
         console.log('✅ Caption generated successfully:', data.caption.substring(0, 100) + '...');
         const caption = {
           caption: data.caption,
@@ -111,19 +125,17 @@ const CaptionGenerator = ({ scrapedData, selectedImageIndex, onCaptionGenerated 
         onCaptionGenerated(caption);
         showSuccess('✅ AI caption generated successfully! 🤖✨');
       } else {
-        let errorMsg = 'No caption in response.';
-        if (data) {
-          errorMsg += ' Data: ' + JSON.stringify(data);
-        }
+        console.error('❌ Unexpected response format:', data);
+        const errorMsg = `Unexpected response format: ${JSON.stringify(data)}`;
         setLastError(errorMsg);
-        console.error('❌ No caption in response:', data);
         showError(errorMsg);
       }
       
     } catch (error: any) {
-      setLastError(error?.message || String(error));
       console.error('❌ Caption generation error:', error);
-      showError(`❌ Failed to generate AI caption: ${error?.message || String(error)}`);
+      const errorMsg = `Failed to generate caption: ${error?.message || String(error)}`;
+      setLastError(errorMsg);
+      showError(errorMsg);
     } finally {
       setGeneratingCaption(false);
     }
