@@ -41,7 +41,7 @@ const InstagramConnect: React.FC<InstagramConnectProps> = ({ onAccountConnected 
         setConnectedAccount(data);
         onAccountConnected?.(data);
       }
-    } catch (err) {
+    } catch {
       // No existing connection
     }
   };
@@ -49,16 +49,23 @@ const InstagramConnect: React.FC<InstagramConnectProps> = ({ onAccountConnected 
   const handleConnect = () => {
     const clientId = import.meta.env.VITE_INSTAGRAM_CLIENT_ID;
     const redirectUri = `${window.location.origin}/instagram-callback`;
-    
+
     if (!clientId) {
       showError('Instagram integration not configured');
       return;
     }
 
     const scope = 'instagram_basic,instagram_content_publish';
-    const authUrl = `https://api.instagram.com/oauth/authorize?client_id=${clientId}&redirect_uri=${encodeURIComponent(redirectUri)}&scope=${scope}&response_type=code`;
-    
-    window.location.href = authUrl;
+    const authUrl = `https://api.instagram.com/oauth/authorize?client_id=${clientId}&redirect_uri=${encodeURIComponent(
+      redirectUri
+    )}&scope=${scope}&response_type=code`;
+
+    // Open OAuth in a new tab to avoid iframe CSP/cookie blocking
+    const newWindow = window.open(authUrl, '_blank', 'noopener,noreferrer');
+    if (!newWindow) {
+      // Fallback if popups are blocked
+      window.location.href = authUrl;
+    }
   };
 
   const handleDisconnect = async () => {
@@ -73,7 +80,7 @@ const InstagramConnect: React.FC<InstagramConnectProps> = ({ onAccountConnected 
 
       setConnectedAccount(null);
       showSuccess('Instagram account disconnected');
-    } catch (err) {
+    } catch {
       showError('Failed to disconnect Instagram account');
     } finally {
       setLoading(false);
@@ -98,9 +105,9 @@ const InstagramConnect: React.FC<InstagramConnectProps> = ({ onAccountConnected 
                 <p className="text-sm text-gray-500">Ready to post</p>
               </div>
             </div>
-            <Button 
-              variant="outline" 
-              size="sm" 
+            <Button
+              variant="outline"
+              size="sm"
               onClick={handleDisconnect}
               disabled={loading}
             >
@@ -130,7 +137,7 @@ const InstagramConnect: React.FC<InstagramConnectProps> = ({ onAccountConnected 
             Connect Instagram Account
           </Button>
           <p className="text-xs text-gray-500">
-            You'll be redirected to Instagram to authorize the connection.
+            A new tab will open to complete login. Make sure pop-ups are allowed.
           </p>
         </div>
       </CardContent>
