@@ -78,28 +78,27 @@ serve(async (req) => {
 
     console.log('🔑 API key found, length:', openRouterApiKey.length)
 
-    // Build a much clearer and more direct prompt
-    let prompt = `You are an expert Instagram content creator. Your job is to write engaging Instagram captions.
+    // Build a cleaner, more direct prompt
+    let prompt = `Write an engaging Instagram caption for this content:
 
-CONTENT TO TRANSFORM:
 Title: "${title}"
-Description: "${description || 'No description'}"
-Content Summary: "${content.substring(0, 300)}..."
+${description ? `Description: "${description}"` : ''}
+Content: "${content.substring(0, 500)}..."
 
-INSTRUCTIONS:
-- Write ONLY an Instagram caption, nothing else
+Requirements:
+- Write ONLY the Instagram caption text
 - Make it ${tone} in tone
-- Use a ${style} approach
-- Keep it ${length} length
+- Use ${style} style
+- Keep it ${length} length (${length === 'short' ? '50-100 words' : length === 'long' ? '150-200 words' : '100-150 words'})
 - Include 3-5 relevant hashtags at the end
-- Use emojis appropriately (not too many)
+- Use emojis appropriately
 - Make it engaging and shareable`
 
     if (prePrompt && prePrompt.trim()) {
-      prompt += `\n- SPECIAL INSTRUCTIONS: ${prePrompt.trim()}`
+      prompt += `\n- Additional instructions: ${prePrompt.trim()}`
     }
 
-    prompt += `\n\nWrite the Instagram caption now:`
+    prompt += `\n\nInstagram caption:`
 
     console.log('📝 Prompt created, length:', prompt.length)
     console.log('🎯 Using model:', model)
@@ -108,17 +107,13 @@ INSTRUCTIONS:
       model: model,
       messages: [
         {
-          role: 'system',
-          content: 'You are an expert Instagram content creator. You only write Instagram captions. You never write explanations, tutorials, or anything other than Instagram captions.'
-        },
-        {
           role: 'user',
           content: prompt
         }
       ],
-      max_tokens: length === 'short' ? 150 : length === 'long' ? 300 : 200,
-      temperature: 0.7,
-      stop: ['\n\n', 'Here\'s', 'This is', 'I hope', 'Let me know']
+      max_tokens: length === 'short' ? 200 : length === 'long' ? 400 : 300,
+      temperature: 0.8,
+      top_p: 0.9
     }
 
     console.log('📤 Sending request to OpenRouter...')
@@ -184,10 +179,24 @@ INSTRUCTIONS:
       )
     }
     
-    // Clean up the caption - remove any explanatory text
-    caption = caption.replace(/^(Here's|This is|I hope|Let me know).*?\n/gi, '')
-    caption = caption.replace(/^(Caption:|Instagram caption:)/gi, '')
+    // Clean up the caption - remove any prefixes or explanatory text
+    caption = caption.replace(/^(Here's|This is|I hope|Let me know|Caption:|Instagram caption:)/gi, '')
     caption = caption.trim()
+
+    // If caption is too short or just punctuation, return an error
+    if (caption.length < 10 || /^[^\w]*$/.test(caption)) {
+      console.error('❌ Caption too short or invalid:', caption)
+      return new Response(
+        JSON.stringify({ 
+          error: 'AI generated invalid caption',
+          details: `Caption was too short or invalid: "${caption}"`
+        }),
+        { 
+          status: 500, 
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+        }
+      )
+    }
 
     console.log('✅ Caption generated successfully!')
     console.log('📝 Caption preview:', caption.substring(0, 100) + '...')
@@ -199,8 +208,6 @@ INSTRUCTIONS:
       title,
       url
     }
-
-    console.log('📤 Sending response:', JSON.stringify(responseData, null, 2))
 
     return new Response(
       JSON.stringify(responseData),
