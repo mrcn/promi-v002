@@ -17,7 +17,7 @@ interface InstagramConnectProps {
   onAccountConnected?: (account: InstagramAccount) => void;
 }
 
-const InstagramConnect = ({ onAccountConnected }: InstagramConnectProps) => {
+const InstagramConnect = (props: InstagramConnectProps) => {
   const [connectedAccount, setConnectedAccount] = useState<InstagramAccount | null>(null);
   const [loading, setLoading] = useState(false);
   const user = useUser();
@@ -27,6 +27,7 @@ const InstagramConnect = ({ onAccountConnected }: InstagramConnectProps) => {
     if (user) {
       checkExistingConnection();
     }
+    // eslint-disable-next-line
   }, [user]);
 
   const checkExistingConnection = async () => {
@@ -39,27 +40,24 @@ const InstagramConnect = ({ onAccountConnected }: InstagramConnectProps) => {
 
       if (data && !error) {
         setConnectedAccount(data);
-        if (onAccountConnected) {
-          onAccountConnected(data);
+        if (props.onAccountConnected) {
+          props.onAccountConnected(data);
         }
       }
     } catch (err) {
-      console.log('No existing Instagram connection');
+      // No existing Instagram connection
     }
   };
 
   const handleConnect = () => {
     const clientId = import.meta.env.VITE_INSTAGRAM_CLIENT_ID;
-    
     if (!clientId) {
       showError('Instagram Client ID not configured. Please add VITE_INSTAGRAM_CLIENT_ID to your environment variables.');
       return;
     }
-
     const redirectUri = `${window.location.origin}/instagram-callback`;
     const scope = 'instagram_basic,instagram_content_publish';
     const authUrl = `https://api.instagram.com/oauth/authorize?client_id=${clientId}&redirect_uri=${encodeURIComponent(redirectUri)}&scope=${scope}&response_type=code`;
-
     window.location.href = authUrl;
   };
 
@@ -140,9 +138,10 @@ const InstagramConnect = ({ onAccountConnected }: InstagramConnectProps) => {
             <br />2. Add VITE_INSTAGRAM_CLIENT_ID to your .env file
             <br />3. Set redirect URI to: {window.location.origin}/instagram-callback
           </div>
-        </CardContent>
-      </Card>
-    );
+        </div>
+      </CardContent>
+    </Card>
+  );
 };
 
 export default InstagramConnect;
