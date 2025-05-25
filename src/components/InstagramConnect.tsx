@@ -17,7 +17,7 @@ interface InstagramConnectProps {
   onAccountConnected?: (account: InstagramAccount) => void;
 }
 
-const InstagramConnect: React.FC<InstagramConnectProps> = ({ onAccountConnected }) => {
+const InstagramConnect = ({ onAccountConnected }: InstagramConnectProps) => {
   const [connectedAccount, setConnectedAccount] = useState<InstagramAccount | null>(null);
   const [loading, setLoading] = useState(false);
   const user = useUser();
@@ -56,15 +56,10 @@ const InstagramConnect: React.FC<InstagramConnectProps> = ({ onAccountConnected 
       return;
     }
 
-    console.log('Instagram Client ID:', clientId);
-    
     const redirectUri = `${window.location.origin}/instagram-callback`;
-    console.log('Redirect URI:', redirectUri);
-
     const scope = 'instagram_basic,instagram_content_publish';
     const authUrl = `https://api.instagram.com/oauth/authorize?client_id=${clientId}&redirect_uri=${encodeURIComponent(redirectUri)}&scope=${scope}&response_type=code`;
 
-    console.log('Auth URL:', authUrl);
     window.location.href = authUrl;
   };
 
