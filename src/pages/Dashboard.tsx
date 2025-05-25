@@ -8,6 +8,7 @@ import URLInput from '@/components/URLInput';
 import ImageSelector from '@/components/ImageSelector';
 import CaptionGenerator from '@/components/CaptionGenerator';
 import InstagramPreview from '@/components/InstagramPreview';
+import InstagramConnect from '@/components/InstagramConnect';
 
 interface ScrapedData {
   images: string[];
@@ -65,6 +66,11 @@ const Dashboard = () => {
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100">
       <Navbar />
       <div className="container mx-auto px-4 py-8">
+        {/* Instagram Connection - Show at top */}
+        <div className="mb-8">
+          <InstagramConnect />
+        </div>
+
         {/* URL Input */}
         {!scrapedData && <URLInput onDataScraped={handleDataScraped} />}
 
