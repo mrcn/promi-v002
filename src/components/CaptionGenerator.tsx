@@ -77,20 +77,19 @@ const CaptionGenerator = ({ scrapedData, selectedImageIndex, onCaptionGenerated 
         body: requestBody
       });
 
+      // Log everything for debugging
       console.log('📥 Supabase function response:', { data, error });
 
       if (error) {
-        // Try to extract the error body if available
-        let errorMsg = error.message;
-        if (error instanceof Error && 'cause' in error && error.cause) {
-          errorMsg += ` | Cause: ${JSON.stringify(error.cause)}`;
+        let errorMsg = error.message || 'Unknown error';
+        // Try to show the error response body if available
+        if (data) {
+          errorMsg += ` | Data: ${JSON.stringify(data)}`;
         }
-        // Try to log the error response body if available
-        if (data && typeof data === 'object') {
-          errorMsg += ` | Response: ${JSON.stringify(data)}`;
-        }
+        // Show the full error object as a fallback
+        errorMsg += ` | Error object: ${JSON.stringify(error)}`;
         setLastError(errorMsg);
-        console.error('❌ Supabase function error:', errorMsg, error);
+        console.error('❌ Supabase function error:', errorMsg, error, data);
         showError(`Supabase error: ${errorMsg}`);
         return;
       }
