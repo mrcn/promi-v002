@@ -47,7 +47,6 @@ const InstagramConnect: React.FC<InstagramConnectProps> = ({ onAccountConnected 
   };
 
   const handleConnect = () => {
-    // Check if client ID is configured
     const clientId = import.meta.env.VITE_INSTAGRAM_CLIENT_ID;
     
     if (!clientId) {
@@ -67,23 +66,8 @@ const InstagramConnect: React.FC<InstagramConnectProps> = ({ onAccountConnected 
 
     console.log('Auth URL:', authUrl);
 
-    // Try to open in new tab first
-    try {
-      const newWindow = window.open(authUrl, '_blank', 'noopener,noreferrer');
-      
-      // Check if popup was blocked after a short delay
-      setTimeout(() => {
-        if (!newWindow || newWindow.closed) {
-          console.log('Popup blocked, redirecting in current window');
-          window.location.href = authUrl;
-        }
-      }, 100);
-      
-    } catch (error) {
-      // If window.open fails, fallback to current window
-      console.log('window.open failed, redirecting in current window');
-      window.location.href = authUrl;
-    }
+    // Simply redirect to Instagram OAuth - no popup logic
+    window.location.href = authUrl;
   };
 
   const handleDisconnect = async () => {
@@ -166,7 +150,6 @@ const InstagramConnect: React.FC<InstagramConnectProps> = ({ onAccountConnected 
         </CardContent>
       </Card>
     );
-  }
 };
 
 export default InstagramConnect;
