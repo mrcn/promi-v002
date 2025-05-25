@@ -1,8 +1,7 @@
 import { useState } from 'react';
 import { useSupabaseClient, useUser } from '@supabase/auth-helpers-react';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { LogOut, Sparkles } from 'lucide-react';
+import { LogOut } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { showSuccess, showError } from '@/utils/toast';
 import URLInput from '@/components/URLInput';
@@ -79,24 +78,6 @@ const Dashboard = () => {
 
         {/* Main Content */}
         <div className="max-w-6xl mx-auto space-y-8">
-          {/* Hero Section */}
-          <Card className="text-center py-8">
-            <CardHeader>
-              <div className="mx-auto w-16 h-16 bg-gradient-to-r from-purple-500 to-pink-500 rounded-full flex items-center justify-center mb-4">
-                <Sparkles className="h-8 w-8 text-white" />
-              </div>
-              <CardTitle className="text-4xl font-bold bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent">
-                Transform Your Posts!
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <p className="text-xl text-gray-600 mb-8 max-w-2xl mx-auto">
-                Turn any URL into engaging Instagram content. Simply paste a link below, 
-                and let AI create the perfect caption for your post.
-              </p>
-            </CardContent>
-          </Card>
-
           {/* URL Input */}
           {!scrapedData && <URLInput onDataScraped={handleDataScraped} />}
 
