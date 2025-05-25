@@ -8,8 +8,7 @@ import URLInput from '@/components/URLInput';
 import ImageSelector from '@/components/ImageSelector';
 import CaptionGenerator from '@/components/CaptionGenerator';
 import InstagramPreview from '@/components/InstagramPreview';
-import InstagramConnect from '@/components/InstagramConnect';
-import InstagramPostButton from '@/components/InstagramPostButton';
+import InstagramPrepareButton from '@/components/InstagramPrepareButton';
 
 interface ScrapedData {
   images: string[];
@@ -26,19 +25,10 @@ interface GeneratedCaption {
   url: string;
 }
 
-interface InstagramAccount {
-  id: string;
-  instagram_user_id: string;
-  username: string;
-  access_token: string;
-  token_expires_at: string;
-}
-
 const Dashboard = () => {
   const [scrapedData, setScrapedData] = useState<ScrapedData | null>(null);
   const [selectedImageIndex, setSelectedImageIndex] = useState<number | null>(null);
   const [generatedCaption, setGeneratedCaption] = useState<GeneratedCaption | null>(null);
-  const [instagramAccount, setInstagramAccount] = useState<InstagramAccount | null>(null);
 
   const user = useUser();
   const supabase = useSupabaseClient();
@@ -60,10 +50,6 @@ const Dashboard = () => {
     setGeneratedCaption(caption);
   };
 
-  const handleAccountConnected = (account: InstagramAccount) => {
-    setInstagramAccount(account);
-  };
-
   const resetForm = () => {
     setScrapedData(null);
     setSelectedImageIndex(null);
@@ -74,11 +60,6 @@ const Dashboard = () => {
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100">
       <Navbar />
       <div className="container mx-auto px-4 py-8">
-        {/* Instagram Connection */}
-        <div className="mb-8">
-          <InstagramConnect onAccountConnected={handleAccountConnected} />
-        </div>
-
         {/* URL Input */}
         {!scrapedData && <URLInput onDataScraped={handleDataScraped} />}
 
@@ -115,12 +96,10 @@ const Dashboard = () => {
                   username={user?.email?.split('@')[0] || 'your_username'}
                 />
                 
-                {instagramAccount && (
-                  <InstagramPostButton
-                    imageUrl={generatedCaption.imageUrl}
-                    caption={generatedCaption.caption}
-                  />
-                )}
+                <InstagramPrepareButton
+                  imageUrl={generatedCaption.imageUrl}
+                  caption={generatedCaption.caption}
+                />
               </div>
             )}
           </div>
