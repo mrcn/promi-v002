@@ -45,6 +45,7 @@ const CaptionGenerator = ({ scrapedData, selectedImageIndex, onCaptionGenerated 
   const handleGenerateCaption = async () => {
     setGeneratingCaption(true);
     setLastError(null);
+    setGeneratedCaption(null); // Reset previous caption on regenerate
     console.log('🚀 Starting caption generation with settings:', {
       title: scrapedData.title,
       model: selectedModel,
@@ -80,27 +81,21 @@ const CaptionGenerator = ({ scrapedData, selectedImageIndex, onCaptionGenerated 
       // Log everything for debugging
       console.log('📥 Supabase function response:', { data, error });
 
-      if (error) {
-        // Always show the raw data field if present
-        let errorMsg = error.message || 'Unknown error';
-        if (data) {
-          if (typeof data === 'object') {
-            errorMsg += ` | Edge function response: ${JSON.stringify(data)}`;
-          } else {
-            errorMsg += ` | Edge function response: ${String(data)}`;
-          }
+      if (error || (data && data.error)) {
+        // Always show the raw data and error fields, even if undefined
+        let errorMsg = '';
+        if (error) {
+          errorMsg += `Supabase error: ${error.message || JSON.stringify(error)}`;
         }
-        errorMsg += ` | Error object: ${JSON.stringify(error)}`;
+        if (data) {
+          errorMsg += ` | Edge function response: ${typeof data === 'object' ? JSON.stringify(data) : String(data)}`;
+        }
+        if (!errorMsg) {
+          errorMsg = 'Unknown error occurred. No error or data returned.';
+        }
         setLastError(errorMsg);
         console.error('❌ Supabase function error:', errorMsg, error, data);
-        showError(`Supabase error: ${errorMsg}`);
-        return;
-      }
-
-      if (data?.error) {
-        setLastError(`${data.error}${data.details ? ' | ' + data.details : ''}`);
-        console.error('❌ Function returned error:', data.error, data.details);
-        showError(`❌ ${data.error}${data.details ? ': ' + data.details : ''}`);
+        showError(errorMsg);
         return;
       }
 
@@ -116,9 +111,13 @@ const CaptionGenerator = ({ scrapedData, selectedImageIndex, onCaptionGenerated 
         onCaptionGenerated(caption);
         showSuccess('✅ AI caption generated successfully! 🤖✨');
       } else {
-        setLastError('No caption in response: ' + JSON.stringify(data));
+        let errorMsg = 'No caption in response.';
+        if (data) {
+          errorMsg += ' Data: ' + JSON.stringify(data);
+        }
+        setLastError(errorMsg);
         console.error('❌ No caption in response:', data);
-        showError('❌ No caption received from AI - check edge function logs');
+        showError(errorMsg);
       }
       
     } catch (error: any) {
