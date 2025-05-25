@@ -1,24 +1,30 @@
-import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import { Toaster } from "@/components/ui/toaster";
+import { Toaster as Sonner } from "@/components/ui/sonner";
+import { TooltipProvider } from "@/components/ui/tooltip";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { SessionContextProvider } from '@supabase/auth-helpers-react';
 import { supabase } from './integrations/supabase/client';
-import { Toaster } from '@/components/ui/toaster';
-import Login from './pages/Login';
-import Register from './pages/Register';
-import Dashboard from './pages/Dashboard';
-import InstagramCallback from './pages/InstagramCallback';
-import ProtectedRoute from './components/ProtectedRoute';
-import Index from './pages/Index';
+import Index from "./pages/Index";
+import Login from "./pages/Login";
+import Register from "./pages/Register";
+import Dashboard from "./pages/Dashboard";
+import NotFound from "./pages/NotFound";
+import ProtectedRoute from "./components/ProtectedRoute";
 
-function App() {
-  return (
+const queryClient = new QueryClient();
+
+const App = () => (
+  <QueryClientProvider client={queryClient}>
     <SessionContextProvider supabaseClient={supabase}>
-      <Router>
-        <div className="App">
+      <TooltipProvider>
+        <Toaster />
+        <Sonner />
+        <BrowserRouter>
           <Routes>
             <Route path="/" element={<Index />} />
             <Route path="/login" element={<Login />} />
             <Route path="/register" element={<Register />} />
-            <Route path="/instagram-callback" element={<InstagramCallback />} />
             <Route 
               path="/dashboard" 
               element={
@@ -27,12 +33,13 @@ function App() {
                 </ProtectedRoute>
               } 
             />
+            {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
+            <Route path="*" element={<NotFound />} />
           </Routes>
-          <Toaster />
-        </div>
-      </Router>
+        </BrowserRouter>
+      </TooltipProvider>
     </SessionContextProvider>
-  );
-}
+  </QueryClientProvider>
+);
 
 export default App;
