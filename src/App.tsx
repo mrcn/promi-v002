@@ -1,6 +1,6 @@
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { SessionContextProvider } from '@supabase/auth-helpers-react';
-import { supabase } from './lib/supabase';
+import { supabase } from './integrations/supabase/client';
 import { Toaster } from '@/components/ui/toaster';
 import Login from './pages/Login';
 import Dashboard from './pages/Dashboard';
