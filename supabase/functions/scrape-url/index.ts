@@ -1,3 +1,4 @@
+, lazy-loaded attributes, and CSS background images">
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts"
 
 const corsHeaders = {
@@ -62,7 +63,7 @@ serve(async (req) => {
       }
     }
 
-    // 3) Handle srcset attributes for additional resolutions
+    // 3) Handle <img> srcset attributes
     const srcsetRegex = /<img[^>]+srcset\s*=\s*['"]([^'"]+)['"]/gi
     while ((match = srcsetRegex.exec(html)) !== null) {
       const parts = match[1].split(',').map(s => s.trim().split(/\s+/)[0])
@@ -72,6 +73,65 @@ serve(async (req) => {
         } catch {
           // skip invalid
         }
+      }
+    }
+
+    // 4) <source> tags with src
+    const sourceSrcRegex = /<source[^>]+src\s*=\s*['"]([^'"]+)['"]/gi
+    while ((match = sourceSrcRegex.exec(html)) !== null) {
+      const src = match[1].trim()
+      try {
+        imagesSet.add(new URL(src, url).toString())
+      } catch {
+        // skip invalid
+      }
+    }
+
+    // 5) <source> srcset attributes
+    const sourceSrcsetRegex = /<source[^>]+srcset\s*=\s*['"]([^'"]+)['"]/gi
+    while ((match = sourceSrcsetRegex.exec(html)) !== null) {
+      const parts = match[1].split(',').map(s => s.trim().split(/\s+/)[0])
+      for (const candidate of parts) {
+        try {
+          imagesSet.add(new URL(candidate, url).toString())
+        } catch {
+          // skip invalid
+        }
+      }
+    }
+
+    // 6) Lazy-loaded <img> data-src
+    const dataSrcRegex = /<img[^>]+data-src\s*=\s*['"]([^'"]+)['"]/gi
+    while ((match = dataSrcRegex.exec(html)) !== null) {
+      const src = match[1].trim()
+      try {
+        imagesSet.add(new URL(src, url).toString())
+      } catch {
+        // skip invalid
+      }
+    }
+
+    // 7) Lazy-loaded <img> data-srcset
+    const dataSrcsetRegex = /<img[^>]+data-srcset\s*=\s*['"]([^'"]+)['"]/gi
+    while ((match = dataSrcsetRegex.exec(html)) !== null) {
+      const parts = match[1].split(',').map(s => s.trim().split(/\s+/)[0])
+      for (const candidate of parts) {
+        try {
+          imagesSet.add(new URL(candidate, url).toString())
+        } catch {
+          // skip invalid
+        }
+      }
+    }
+
+    // 8) Inline CSS background-image URLs
+    const bgRegex = /background-image\s*:\s*url\((?:'|")?([^)'"]+)(?:'|")?\)/gi
+    while ((match = bgRegex.exec(html)) !== null) {
+      const src = match[1].trim()
+      try {
+        imagesSet.add(new URL(src, url).toString())
+      } catch {
+        // skip invalid
       }
     }
 
